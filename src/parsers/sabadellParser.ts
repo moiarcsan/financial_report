@@ -2,8 +2,41 @@ import * as XLSX from "xlsx";
 import { type BankMovement } from "../types/movement";
 import { parseAnyDate } from "../utils/dateUtils";
 import { parseAmountToCents } from "../utils/moneyUtils";
-import { cleanText } from "../utils/textUtils";
+import { cleanText, normalizeAccountOwnerToAlias } from "../utils/textUtils";
 import { type ParserOutput } from "./n26Parser";
+
+export function findSabadellAccountOwner(rows: Array<Array<any>>): string {
+  const ownerLabelPatterns = [/titular/i, /cliente/i, /nombre/i, /propietario/i, /holder/i, /owner/i];
+
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r];
+    if (!row) continue;
+
+    for (let c = 0; c < row.length; c++) {
+      const cellValue = String(row[c] ?? "").trim();
+      const normalizedCell = cellValue.toLowerCase();
+
+      if (!normalizedCell) continue;
+
+      if (ownerLabelPatterns.some(pattern => pattern.test(normalizedCell))) {
+        const candidates = [row[c + 1], row[c + 2], row[c + 3]]
+          .filter(value => value !== undefined && value !== null && String(value).trim() !== "")
+          .map(value => String(value).trim());
+
+        for (const candidate of candidates) {
+          const normalizedCandidate = normalizeAccountOwnerToAlias(candidate);
+          const isLikelyAccountNumber = /^\d+$/.test(candidate.replace(/\s+/g, "")) || /^[0-9\s./-]+$/.test(candidate);
+
+          if (!isLikelyAccountNumber && normalizedCandidate) {
+            return normalizedCandidate;
+          }
+        }
+      }
+    }
+  }
+
+  return "Sabadell Account";
+}
 
 /**
  * Parses a Sabadell XLS / XLSX sheet.
@@ -23,24 +56,8 @@ export function parseSabadell(sheet: XLSX.WorkSheet, sourceFileName: string): Pa
     };
   }
 
-  // 1. Locate the Account Number in the informative area above the table
-  let account = "Sabadell Account";
-  for (let r = 0; r < rows.length; r++) {
-    const row = rows[r];
-    if (!row) continue;
-    let found = false;
-    for (let c = 0; c < row.length; c++) {
-      const cellVal = String(row[c]).trim().toLowerCase();
-      if (cellVal === "cuenta:") {
-        if (c + 1 < row.length) {
-          account = String(row[c + 1]).trim();
-        }
-        found = true;
-        break;
-      }
-    }
-    if (found) break;
-  }
+  // 1. Locate the owner name in the informative area above the table
+  const account = findSabadellAccountOwner(rows);
 
   // 2. Locate the header row by searching for a row whose first cell is "F. Operativa"
   let headerRowIndex = -1;

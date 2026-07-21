@@ -16,3 +16,17 @@ export function normalizeAccount(account: string): string {
   // Eliminate spaces but keep other characters intact
   return String(account).replace(/\s/g, "");
 }
+
+export function normalizeAccountOwnerToAlias(ownerName: string): string {
+  const normalized = cleanText(String(ownerName || "")).toLowerCase();
+
+  if (normalized.includes("moisés") || normalized.includes("moises") || normalized.includes("moi")) {
+    return "Moi";
+  }
+
+  if (normalized.includes("manuel") || normalized.includes("manu")) {
+    return "Manu";
+  }
+
+  return cleanText(String(ownerName || ""));
+}

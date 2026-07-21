@@ -1,6 +1,9 @@
 import { detectBankFormat } from "../parsers/parserDetector";
 import { parseAnyDate } from "./dateUtils";
 import { parseAmountToCents } from "./moneyUtils";
+import { summarizeAccountTotalsByBank } from "./n26AccountUtils";
+import { normalizeAccountOwnerToAlias } from "./textUtils";
+import { findSabadellAccountOwner } from "../parsers/sabadellParser";
 import { getMovementFingerprint } from "../services/fingerprintService";
 import { db } from "../database/database";
 import * as XLSX from "xlsx";
@@ -127,8 +130,44 @@ export async function runTestSuite(): Promise<TestSuiteResult> {
       addResult("Convertir correctamente importes", true, "Céntimos exactos", "Céntimos exactos", "Formatos probados: decimal con coma, decimal con punto, entero y número nativo");
     }
 
+    // --- Test 4: Sabadell Owner Name Normalization ---
+    const normalizedMoi = normalizeAccountOwnerToAlias("Moisés García");
+    const normalizedManu = normalizeAccountOwnerToAlias("Manuel Pérez");
+    const ownerAliasesMatch = normalizedMoi === "Moi" && normalizedManu === "Manu";
+    addResult(
+      "Normalizar correctamente los titulares de Sabadell",
+      ownerAliasesMatch,
+      "Moi y Manu",
+      `${normalizedMoi} y ${normalizedManu}`
+    );
 
-    // --- Test 4: Fingerprint Consistency ---
+    const foundSabadellOwner = findSabadellAccountOwner([
+      ["Cuenta:", "ES1234567890"],
+      ["Titular:", "Moisés García"],
+      ["F. Operativa", "F. Valor", "Concepto", "Importe"],
+    ]);
+    addResult(
+      "Extraer correctamente el titular de Sabadell",
+      foundSabadellOwner === "Moi",
+      "Moi",
+      foundSabadellOwner
+    );
+
+    // --- Test 5: N26 Account Totals ---
+    const n26AccountTotals = summarizeAccountTotalsByBank([
+      { bank: "N26", account: "Manu", amount: -12.50 } as any,
+      { bank: "N26", account: "Moi", amount: 30.00 } as any,
+      { bank: "N26", account: "Manu", amount: 5.25 } as any,
+    ], "N26");
+    const n26AccountTotalsMatch = n26AccountTotals.Manu === -725 && n26AccountTotals.Moi === 3000;
+    addResult(
+      "Agrupar correctamente los totales de N26 por cuenta",
+      n26AccountTotalsMatch,
+      "Manu: -725 céntimos, Moi: 3000 céntimos",
+      `Manu: ${n26AccountTotals.Manu} céntimos, Moi: ${n26AccountTotals.Moi} céntimos`
+    );
+
+    // --- Test 6: Fingerprint Consistency ---
     const hash1 = await getMovementFingerprint("N26", "ES123", "2026-07-21", "2026-07-21", "Compra Súper", -25.50);
     const hash2 = await getMovementFingerprint("N26", "ES123", "2026-07-21", "2026-07-21", "Compra Súper", -25.50);
     const hashesEqual = hash1 === hash2;
@@ -141,7 +180,7 @@ export async function runTestSuite(): Promise<TestSuiteResult> {
     );
 
 
-    // --- Test 5: Avoid Duplicates & IndexedDB Integrity ---
+    // --- Test 7: Avoid Duplicates & IndexedDB Integrity ---
     // Clear movements first
     const originalCount = await db.movements.count();
     
@@ -189,7 +228,7 @@ export async function runTestSuite(): Promise<TestSuiteResult> {
     }
 
 
-    // --- Test 6: Accounting Sum Check Match ---
+    // --- Test 8: Accounting Sum Check Match ---
     // Math checks
     const p1 = parseAmountToCents("10,25"); // 1025
     const p2 = parseAmountToCents("-5,10"); // -510

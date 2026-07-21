@@ -6,21 +6,25 @@ interface MovementSummaryProps {
   totalCount: number;
   globalNetCents: number;
   n26NetCents: number;
+  n26AccountTotals: Record<string, number>;
   unicajaNetCents: number;
   sabadellNetCents: number;
+  sabadellAccountTotals: Record<string, number>;
 }
 
 export const MovementSummary: React.FC<MovementSummaryProps> = ({
   totalCount,
   globalNetCents,
   n26NetCents,
+  n26AccountTotals,
   unicajaNetCents,
   sabadellNetCents,
+  sabadellAccountTotals,
 }) => {
   const isGlobalPositive = globalNetCents >= 0;
 
   return (
-    <div id="movement-summary-panel" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+    <div id="movement-summary-panel" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-8 items-stretch">
       {/* Global Net Balance */}
       <div 
         id="card-global" 
@@ -46,26 +50,42 @@ export const MovementSummary: React.FC<MovementSummaryProps> = ({
       {/* N26 Summary */}
       <div 
         id="card-n26" 
-        className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col justify-between transition-all hover:shadow-md hover:border-slate-300"
+        className="xl:col-span-2 h-full p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col transition-all hover:shadow-md hover:border-slate-300"
       >
-        <div>
+        <div className="flex-1 flex flex-col">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-md bg-teal-50 text-teal-700">N26</span>
             <Building2 size={16} className="text-slate-400" />
           </div>
-          <p className="text-xs text-slate-500">Suma neta</p>
+          <p className="text-xs text-slate-500">Suma neta total</p>
           <h4 className={`text-xl font-sans font-semibold mt-1 ${n26NetCents >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
             {formatCentsToEuro(n26NetCents)}
           </h4>
+          <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+            {Object.entries(n26AccountTotals as Record<string, number>).length > 0 ? (
+              (Object.entries(n26AccountTotals as Record<string, number>) as [string, number][])
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([accountName, totalCents]) => (
+                  <div key={accountName} className="flex items-center justify-between text-sm">
+                    <span className="text-slate-600">{accountName}</span>
+                    <span className={`font-semibold ${totalCents >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                      {formatCentsToEuro(totalCents)}
+                    </span>
+                  </div>
+                ))
+            ) : (
+              <p className="text-sm text-slate-400">Sin cuentas N26 diferenciadas</p>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Unicaja Summary */}
       <div 
         id="card-unicaja" 
-        className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col justify-between transition-all hover:shadow-md hover:border-slate-300"
+        className="h-full p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col transition-all hover:shadow-md hover:border-slate-300"
       >
-        <div>
+        <div className="flex-1 flex flex-col">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-md bg-green-50 text-green-700">Unicaja</span>
             <Building2 size={16} className="text-slate-400" />
@@ -80,17 +100,33 @@ export const MovementSummary: React.FC<MovementSummaryProps> = ({
       {/* Sabadell Summary */}
       <div 
         id="card-sabadell" 
-        className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col justify-between transition-all hover:shadow-md hover:border-slate-300"
+        className="h-full p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col transition-all hover:shadow-md hover:border-slate-300"
       >
-        <div>
+        <div className="flex-1 flex flex-col">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700">Sabadell</span>
             <Building2 size={16} className="text-slate-400" />
           </div>
-          <p className="text-xs text-slate-500">Suma neta</p>
+          <p className="text-xs text-slate-500">Suma neta total</p>
           <h4 className={`text-xl font-sans font-semibold mt-1 ${sabadellNetCents >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
             {formatCentsToEuro(sabadellNetCents)}
           </h4>
+          <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+            {Object.entries(sabadellAccountTotals as Record<string, number>).length > 0 ? (
+              (Object.entries(sabadellAccountTotals as Record<string, number>) as [string, number][])
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([accountName, totalCents]) => (
+                  <div key={accountName} className="flex items-center justify-between text-sm">
+                    <span className="text-slate-600">{accountName}</span>
+                    <span className={`font-semibold ${totalCents >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                      {formatCentsToEuro(totalCents)}
+                    </span>
+                  </div>
+                ))
+            ) : (
+              <p className="text-sm text-slate-400">Sin cuentas Sabadell diferenciadas</p>
+            )}
+          </div>
         </div>
       </div>
     </div>

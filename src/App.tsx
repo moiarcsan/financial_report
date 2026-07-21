@@ -6,6 +6,7 @@ import { MovementSummary } from "./components/MovementSummary";
 import { ImportButton } from "./components/ImportButton";
 import { ImportSummary } from "./components/ImportSummary";
 import { MovementTable } from "./components/MovementTable";
+import { summarizeAccountTotalsByBank } from "./utils/n26AccountUtils";
 import { Wallet, Menu } from "lucide-react";
 
 export default function App() {
@@ -66,6 +67,9 @@ export default function App() {
   let unicajaNetCents = 0;
   let sabadellNetCents = 0;
 
+  const n26AccountTotals = summarizeAccountTotalsByBank(movements, "N26");
+  const sabadellAccountTotals = summarizeAccountTotalsByBank(movements, "Sabadell");
+
   for (const m of movements) {
     const cents = Math.round(m.amount * 100);
     globalNetCents += cents;
@@ -122,8 +126,10 @@ export default function App() {
           totalCount={totalCount}
           globalNetCents={globalNetCents}
           n26NetCents={n26NetCents}
+          n26AccountTotals={n26AccountTotals}
           unicajaNetCents={unicajaNetCents}
           sabadellNetCents={sabadellNetCents}
+          sabadellAccountTotals={sabadellAccountTotals}
         />
 
         {/* File Drag Zone & Actions Panel (Sidebar Drawer) */}
