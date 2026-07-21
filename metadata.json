@@ -1,0 +1,6 @@
+{
+  "name": "Control financiero del hogar",
+  "description": "MVP para importar, unificar y visualizar extractos bancarios de N26, Unicaja y Sabadell con IndexedDB y validación contable.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
