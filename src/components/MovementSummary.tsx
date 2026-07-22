@@ -31,9 +31,9 @@ export const MovementSummary: React.FC<MovementSummaryProps> = ({
         className="lg:col-span-2 h-full p-5 rounded-2xl bg-slate-900 text-white shadow-md border border-slate-800 flex flex-col justify-between"
       >
         <div className="flex justify-between items-start mb-4">
-          <div>
-            <p className="text-xs font-mono uppercase tracking-wider text-slate-400">Saldo Neto Global</p>
-            <h3 className="text-2xl font-sans font-bold tracking-tight mt-1">
+            <div>
+              <p className="text-xs font-sans uppercase tracking-wider text-slate-400">Saldo Neto Global</p>
+              <h3 className="text-2xl font-sans font-bold tracking-tight mt-1">
               {formatCentsToEuro(globalNetCents)}
             </h3>
           </div>
@@ -50,11 +50,11 @@ export const MovementSummary: React.FC<MovementSummaryProps> = ({
       {/* N26 Summary */}
       <div 
         id="card-n26" 
-        className="xl:col-span-2 h-full p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col transition-all hover:shadow-md hover:border-slate-300"
+        className="h-full p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col transition-all hover:shadow-md hover:border-slate-300"
       >
         <div className="flex-1 flex flex-col">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-md bg-teal-50 text-teal-700">N26</span>
+            <span className="text-xs font-sans font-semibold px-2 py-0.5 rounded-md bg-teal-50 text-teal-700">N26</span>
             <Building2 size={16} className="text-slate-400" />
           </div>
           <p className="text-xs text-slate-500">Suma neta total</p>
@@ -87,7 +87,7 @@ export const MovementSummary: React.FC<MovementSummaryProps> = ({
       >
         <div className="flex-1 flex flex-col">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-md bg-green-50 text-green-700">Unicaja</span>
+            <span className="text-xs font-sans font-semibold px-2 py-0.5 rounded-md bg-green-50 text-green-700">Unicaja</span>
             <Building2 size={16} className="text-slate-400" />
           </div>
           <p className="text-xs text-slate-500">Suma neta</p>
@@ -104,7 +104,7 @@ export const MovementSummary: React.FC<MovementSummaryProps> = ({
       >
         <div className="flex-1 flex flex-col">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700">Sabadell</span>
+            <span className="text-xs font-sans font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700">Sabadell</span>
             <Building2 size={16} className="text-slate-400" />
           </div>
           <p className="text-xs text-slate-500">Suma neta total</p>

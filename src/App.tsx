@@ -7,6 +7,8 @@ import { ImportButton } from "./components/ImportButton";
 import { ImportSummary } from "./components/ImportSummary";
 import { MovementTable } from "./components/MovementTable";
 import { SavingsHistory } from "./components/SavingsHistory";
+import { ExpenseAnalysis, type CategoryFilter } from "./components/ExpenseAnalysis";
+import { useUserCategoryRules } from "./hooks/useUserCategoryRules";
 import { summarizeAccountTotalsByBank, sumNetTotals } from "./utils/n26AccountUtils";
 import { normalizeAccountOwnerToAlias } from "./utils/textUtils";
 import { buildMonthlySavingsHistory } from "./utils/savingsHistory";
@@ -17,6 +19,11 @@ export default function App() {
   const [importSummary, setImportSummary] = useState<GlobalImportResult | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter | null>(null);
+  const [monthlyTargetCents, setMonthlyTargetCents] = useState<number>(() => {
+    const saved = localStorage.getItem("monthlyTargetCents");
+    return saved ? parseInt(saved, 10) : 200000;
+  });
 
   // Load all saved movements from IndexedDB on startup
   const loadMovements = async () => {
@@ -89,6 +96,13 @@ export default function App() {
   // Close the import result panel
   const handleCloseSummary = () => {
     setImportSummary(null);
+  };
+
+  // Update the monthly savings target (persisted in localStorage)
+  const handleMonthlyTargetChange = (euros: number) => {
+    const cents = Math.round(euros * 100);
+    setMonthlyTargetCents(cents);
+    localStorage.setItem("monthlyTargetCents", cents.toString());
   };
 
   // Safely calculate net totals in cents to avoid floats errors
@@ -219,7 +233,7 @@ export default function App() {
                 Control financiero del hogar
               </h1>
               <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">
-                Unificador de extractos bancarios MVP
+                Unificador de extractos bancarios
               </p>
             </div>
           </div>
@@ -274,18 +288,30 @@ export default function App() {
         />
 
         {/* Savings history section */}
-        <SavingsHistory history={savingsHistory} />
+        <SavingsHistory
+          history={savingsHistory}
+          monthlyTargetCents={monthlyTargetCents}
+          onMonthlyTargetChange={handleMonthlyTargetChange}
+        />
+
+        {/* Expense Analysis Section */}
+        <ExpenseAnalysis
+          movements={movements}
+          onCategorySelect={setCategoryFilter}
+        />
 
         {/* Master Transactions List Table */}
         <MovementTable
           movements={movements}
+          categoryFilter={categoryFilter}
+          onClearCategoryFilter={() => setCategoryFilter(null)}
         />
 
       </main>
 
       {/* Footer */}
       <footer id="app-footer" className="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-400 mt-auto">
-        <p>© 2026 Control Financiero del Hogar MVP. Todo procesado de forma local y segura.</p>
+        <p>© 2026 Control Financiero del Hogar. Todo procesado de forma local y segura.</p>
       </footer>
     </div>
   );
