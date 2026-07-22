@@ -2,7 +2,7 @@ import type { BankMovement } from "../types/movement";
 
 export function summarizeAccountTotalsByBank(
   movements: Pick<BankMovement, "bank" | "account" | "amount">[],
-  bank: "N26" | "Sabadell"
+  bank: "N26" | "Sabadell" | "Unicaja"
 ) {
   const totals: Record<string, number> = {};
 
@@ -17,4 +17,8 @@ export function summarizeAccountTotalsByBank(
   }
 
   return totals;
+}
+
+export function sumNetTotals(...totals: number[]) {
+  return totals.reduce((sum, total) => sum + total, 0);
 }

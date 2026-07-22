@@ -1,12 +1,15 @@
 import { useState, useEffect } from "react";
 import { db } from "./database/database";
 import { type BankMovement, type GlobalImportResult } from "./types/movement";
-import { processMultipleFiles } from "./services/importService";
+import { deleteMovementsBySourceFileName, getImportedSourceFileNames, processMultipleFiles } from "./services/importService";
 import { MovementSummary } from "./components/MovementSummary";
 import { ImportButton } from "./components/ImportButton";
 import { ImportSummary } from "./components/ImportSummary";
 import { MovementTable } from "./components/MovementTable";
-import { summarizeAccountTotalsByBank } from "./utils/n26AccountUtils";
+import { SavingsHistory } from "./components/SavingsHistory";
+import { summarizeAccountTotalsByBank, sumNetTotals } from "./utils/n26AccountUtils";
+import { normalizeAccountOwnerToAlias } from "./utils/textUtils";
+import { buildMonthlySavingsHistory } from "./utils/savingsHistory";
 import { Wallet, Menu } from "lucide-react";
 
 export default function App() {
@@ -19,7 +22,25 @@ export default function App() {
   const loadMovements = async () => {
     try {
       const all = await db.movements.toArray();
-      setMovements(all);
+      const normalizedMovements = all.map((movement) => {
+        if (movement.bank === "Unicaja") {
+          return {
+            ...movement,
+            account: "Cuenta M&M",
+          };
+        }
+
+        if (movement.bank === "Sabadell") {
+          return {
+            ...movement,
+            account: normalizeAccountOwnerToAlias(movement.account),
+          };
+        }
+
+        return movement;
+      });
+
+      setMovements(normalizedMovements);
     } catch (err) {
       console.error("Error cargando movimientos de IndexedDB:", err);
     }
@@ -55,6 +76,16 @@ export default function App() {
     }
   };
 
+  const handleRemoveFileData = async (fileName: string) => {
+    try {
+      await deleteMovementsBySourceFileName(fileName);
+      setImportSummary(null);
+      await loadMovements();
+    } catch (err) {
+      console.error("Error al borrar los movimientos del fichero:", err);
+    }
+  };
+
   // Close the import result panel
   const handleCloseSummary = () => {
     setImportSummary(null);
@@ -62,25 +93,117 @@ export default function App() {
 
   // Safely calculate net totals in cents to avoid floats errors
   const totalCount = movements.length;
-  let globalNetCents = 0;
-  let n26NetCents = 0;
-  let unicajaNetCents = 0;
-  let sabadellNetCents = 0;
+  const initialN26MoiBalanceCents = 23303;
+  const initialN26ManuBalanceCents = 8565;
+  const initialSabadellMoiBalanceCents = 4925520;
+  const initialSabadellManuBalanceCents = 329;
+  const initialUnicajaBalanceCents = 209821;
+  const startDate = "2026-07-01";
+  let n26NetCents = initialN26MoiBalanceCents + initialN26ManuBalanceCents;
+  let unicajaNetCents = initialUnicajaBalanceCents;
+  let sabadellNetCents = initialSabadellMoiBalanceCents + initialSabadellManuBalanceCents;
 
   const n26AccountTotals = summarizeAccountTotalsByBank(movements, "N26");
   const sabadellAccountTotals = summarizeAccountTotalsByBank(movements, "Sabadell");
+  const unicajaAccountTotals = summarizeAccountTotalsByBank(movements, "Unicaja");
+  const n26AccountTotalsWithInitial = { ...n26AccountTotals };
+  const sabadellAccountTotalsWithInitial = { ...sabadellAccountTotals };
+  const unicajaAccountTotalsWithInitial = { ...unicajaAccountTotals };
+
+  const moiAccountName = Object.keys(n26AccountTotalsWithInitial).find((accountName) =>
+    ["Cuenta Moi", "Moi", "Cuenta moi", "moi"].includes(accountName)
+  );
+  const manuAccountName = Object.keys(n26AccountTotalsWithInitial).find((accountName) =>
+    ["Cuenta Manu", "Manu", "Cuenta manu", "manu"].includes(accountName)
+  );
+  const sabadellMoiAccountName = Object.keys(sabadellAccountTotalsWithInitial).find((accountName) =>
+    ["Cuenta Moi", "Moi", "Cuenta moi", "moi"].includes(accountName)
+  );
+  const sabadellManuAccountName = Object.keys(sabadellAccountTotalsWithInitial).find((accountName) =>
+    ["Cuenta Manu", "Manu", "Cuenta manu", "manu"].includes(accountName)
+  );
+  const unicajaAccountName = Object.keys(unicajaAccountTotalsWithInitial).find((accountName) =>
+    ["Cuenta M&M", "M&M", "Cuenta m&m", "m&m"].includes(accountName)
+  );
+
+  const moiAccountKey = moiAccountName || "Cuenta Moi";
+  const manuAccountKey = manuAccountName || "Cuenta Manu";
+  const sabadellMoiAccountKey = sabadellMoiAccountName || "Cuenta Moi";
+  const sabadellManuAccountKey = sabadellManuAccountName || "Cuenta Manu";
+  const unicajaAccountKey = unicajaAccountName || "Cuenta M&M";
 
   for (const m of movements) {
     const cents = Math.round(m.amount * 100);
-    globalNetCents += cents;
+    const isN26MoiAccount = m.bank === "N26" && ["Cuenta Moi", "Moi", "Cuenta moi", "moi"].includes(m.account);
+    const isN26ManuAccount = m.bank === "N26" && ["Cuenta Manu", "Manu", "Cuenta manu", "manu"].includes(m.account);
+    const isSabadellMoiAccount = m.bank === "Sabadell" && ["Cuenta Moi", "Moi", "Cuenta moi", "moi"].includes(m.account);
+    const isSabadellManuAccount = m.bank === "Sabadell" && ["Cuenta Manu", "Manu", "Cuenta manu", "manu"].includes(m.account);
+    const isAfterInitialDate = m.operationDate >= startDate;
+
     if (m.bank === "N26") {
-      n26NetCents += cents;
+      if (isN26MoiAccount && isAfterInitialDate) {
+        n26NetCents += cents;
+      }
+      if (isN26ManuAccount && isAfterInitialDate) {
+        n26NetCents += cents;
+      }
     } else if (m.bank === "Unicaja") {
-      unicajaNetCents += cents;
+      if (isAfterInitialDate) {
+        unicajaNetCents += cents;
+      }
     } else if (m.bank === "Sabadell") {
-      sabadellNetCents += cents;
+      if (isSabadellMoiAccount && isAfterInitialDate) {
+        sabadellNetCents += cents;
+      }
+      if (isSabadellManuAccount && isAfterInitialDate) {
+        sabadellNetCents += cents;
+      }
     }
   }
+
+  n26AccountTotalsWithInitial[moiAccountKey] = initialN26MoiBalanceCents;
+  n26AccountTotalsWithInitial[manuAccountKey] = initialN26ManuBalanceCents;
+  sabadellAccountTotalsWithInitial[sabadellMoiAccountKey] = initialSabadellMoiBalanceCents;
+  sabadellAccountTotalsWithInitial[sabadellManuAccountKey] = initialSabadellManuBalanceCents;
+  unicajaAccountTotalsWithInitial[unicajaAccountKey] = initialUnicajaBalanceCents;
+
+  for (const m of movements) {
+    const cents = Math.round(m.amount * 100);
+    const isN26MoiAccount = m.bank === "N26" && ["Cuenta Moi", "Moi", "Cuenta moi", "moi"].includes(m.account);
+    const isN26ManuAccount = m.bank === "N26" && ["Cuenta Manu", "Manu", "Cuenta manu", "manu"].includes(m.account);
+    const isSabadellMoiAccount = m.bank === "Sabadell" && ["Cuenta Moi", "Moi", "Cuenta moi", "moi"].includes(m.account);
+    const isSabadellManuAccount = m.bank === "Sabadell" && ["Cuenta Manu", "Manu", "Cuenta manu", "manu"].includes(m.account);
+    const isAfterInitialDate = m.operationDate >= startDate;
+
+    if (isN26MoiAccount && isAfterInitialDate) {
+      n26AccountTotalsWithInitial[moiAccountKey] = (n26AccountTotalsWithInitial[moiAccountKey] || 0) + cents;
+    }
+
+    if (isN26ManuAccount && isAfterInitialDate) {
+      n26AccountTotalsWithInitial[manuAccountKey] = (n26AccountTotalsWithInitial[manuAccountKey] || 0) + cents;
+    }
+
+    if (isSabadellMoiAccount && isAfterInitialDate) {
+      sabadellAccountTotalsWithInitial[sabadellMoiAccountKey] = (sabadellAccountTotalsWithInitial[sabadellMoiAccountKey] || 0) + cents;
+    }
+
+    if (isSabadellManuAccount && isAfterInitialDate) {
+      sabadellAccountTotalsWithInitial[sabadellManuAccountKey] = (sabadellAccountTotalsWithInitial[sabadellManuAccountKey] || 0) + cents;
+    }
+
+    if (m.bank === "Unicaja" && isAfterInitialDate) {
+      unicajaAccountTotalsWithInitial[unicajaAccountKey] = (unicajaAccountTotalsWithInitial[unicajaAccountKey] || 0) + cents;
+    }
+  }
+
+  const globalNetCents = sumNetTotals(n26NetCents, unicajaNetCents, sabadellNetCents);
+  const savingsHistory = buildMonthlySavingsHistory(
+    movements.map((movement) => ({ operationDate: movement.operationDate, amount: movement.amount })),
+    "2026-07-01",
+    "2026-12-31",
+    sumNetTotals(initialN26MoiBalanceCents, initialN26ManuBalanceCents, initialSabadellMoiBalanceCents, initialSabadellManuBalanceCents, initialUnicajaBalanceCents),
+    globalNetCents
+  );
 
   return (
     <div id="app-root-container" className="min-h-screen bg-slate-50/50 text-slate-800 flex flex-col">
@@ -126,10 +249,11 @@ export default function App() {
           totalCount={totalCount}
           globalNetCents={globalNetCents}
           n26NetCents={n26NetCents}
-          n26AccountTotals={n26AccountTotals}
+          n26AccountTotals={n26AccountTotalsWithInitial}
           unicajaNetCents={unicajaNetCents}
           sabadellNetCents={sabadellNetCents}
-          sabadellAccountTotals={sabadellAccountTotals}
+          sabadellAccountTotals={sabadellAccountTotalsWithInitial}
+          unicajaAccountTotals={unicajaAccountTotalsWithInitial}
         />
 
         {/* File Drag Zone & Actions Panel (Sidebar Drawer) */}
@@ -138,6 +262,8 @@ export default function App() {
           onClose={() => setIsSidebarOpen(false)}
           onFilesSelected={handleFilesSelected}
           onClearDatabase={handleClearDatabase}
+          onRemoveFileData={handleRemoveFileData}
+          importedFileNames={getImportedSourceFileNames(movements)}
           isProcessing={isProcessing}
         />
 
@@ -146,6 +272,9 @@ export default function App() {
           summary={importSummary}
           onClose={handleCloseSummary}
         />
+
+        {/* Savings history section */}
+        <SavingsHistory history={savingsHistory} />
 
         {/* Master Transactions List Table */}
         <MovementTable

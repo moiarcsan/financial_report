@@ -62,11 +62,11 @@ export function centsToEuros(cents: number): number {
  * Formats integer cents into a Spanish locale currency string (e.g., "1.234,56 €").
  */
 export function formatCentsToEuro(cents: number): string {
-  const euros = cents / 100;
-  return new Intl.NumberFormat("es-ES", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(euros);
+  const sign = cents < 0 ? "-" : "";
+  const absoluteCents = Math.abs(cents);
+  const euros = Math.floor(absoluteCents / 100);
+  const centsPart = absoluteCents % 100;
+
+  const formattedEuros = String(euros).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${sign}${formattedEuros},${String(centsPart).padStart(2, "0")} €`;
 }

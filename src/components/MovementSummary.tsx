@@ -28,17 +28,17 @@ export const MovementSummary: React.FC<MovementSummaryProps> = ({
       {/* Global Net Balance */}
       <div 
         id="card-global" 
-        className="lg:col-span-2 p-5 rounded-2xl bg-slate-900 text-white shadow-md border border-slate-800 flex flex-col justify-between"
+        className="lg:col-span-2 h-full p-5 rounded-2xl bg-slate-900 text-white shadow-md border border-slate-800 flex flex-col justify-between"
       >
         <div className="flex justify-between items-start mb-4">
           <div>
             <p className="text-xs font-mono uppercase tracking-wider text-slate-400">Saldo Neto Global</p>
-            <h3 className="text-3xl font-sans font-bold tracking-tight mt-1">
+            <h3 className="text-2xl font-sans font-bold tracking-tight mt-1">
               {formatCentsToEuro(globalNetCents)}
             </h3>
           </div>
           <div className={`p-2.5 rounded-xl ${isGlobalPositive ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"}`}>
-            {isGlobalPositive ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
+            {isGlobalPositive ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
           </div>
         </div>
         <div className="flex items-center text-xs text-slate-400 mt-2">

@@ -7,6 +7,8 @@ interface ImportButtonProps {
   onClose: () => void;
   onFilesSelected: (files: FileList) => void;
   onClearDatabase: () => void;
+  onRemoveFileData: (fileName: string) => void;
+  importedFileNames: string[];
   isProcessing: boolean;
 }
 
@@ -15,11 +17,14 @@ export const ImportButton: React.FC<ImportButtonProps> = ({
   onClose,
   onFilesSelected,
   onClearDatabase,
+  onRemoveFileData,
+  importedFileNames,
   isProcessing,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [showConfirmClear, setShowConfirmClear] = useState(false);
+  const [pendingRemovalFile, setPendingRemovalFile] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -70,6 +75,24 @@ export const ImportButton: React.FC<ImportButtonProps> = ({
 
   const cancelClear = () => {
     setShowConfirmClear(false);
+  };
+
+  const handleRemoveFileClick = (fileName: string) => {
+    setPendingRemovalFile(fileName);
+  };
+
+  const confirmRemoveFile = () => {
+    if (!pendingRemovalFile) {
+      return;
+    }
+
+    onRemoveFileData(pendingRemovalFile);
+    setPendingRemovalFile(null);
+    onClose();
+  };
+
+  const cancelRemoveFile = () => {
+    setPendingRemovalFile(null);
   };
 
   return (
@@ -158,6 +181,56 @@ export const ImportButton: React.FC<ImportButtonProps> = ({
 
               {/* Action Buttons Box */}
               <div className="space-y-4 pt-4 border-t border-slate-100">
+                {importedFileNames.length > 0 && (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider font-mono">
+                        Ficheros importados
+                      </p>
+                      <span className="text-[11px] text-slate-400">{importedFileNames.length}</span>
+                    </div>
+
+                    <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
+                      {importedFileNames.map((fileName) => (
+                        <button
+                          key={fileName}
+                          type="button"
+                          onClick={() => handleRemoveFileClick(fileName)}
+                          disabled={isProcessing}
+                          className="w-full flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-sm text-slate-700 hover:border-rose-300 hover:bg-rose-50/40 transition-all disabled:opacity-50 cursor-pointer"
+                        >
+                          <span className="truncate pr-2">{fileName}</span>
+                          <Trash2 size={14} className="text-rose-500 shrink-0" />
+                        </button>
+                      ))}
+                    </div>
+
+                    {pendingRemovalFile && (
+                      <div className="rounded-xl border border-rose-200 bg-rose-50/60 p-3 space-y-3">
+                        <p className="text-xs font-semibold text-rose-800">
+                          ¿Deseas borrar todos los movimientos importados desde <span className="font-mono">{pendingRemovalFile}</span>?
+                        </p>
+                        <div className="flex gap-2 justify-end">
+                          <button
+                            type="button"
+                            onClick={confirmRemoveFile}
+                            className="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-medium hover:bg-rose-700 transition-colors cursor-pointer"
+                          >
+                            Sí, borrar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={cancelRemoveFile}
+                            className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 text-xs font-medium hover:bg-slate-50 transition-colors cursor-pointer"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <button
                   id="btn-import-trigger"
                   type="button"

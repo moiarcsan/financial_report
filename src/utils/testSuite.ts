@@ -1,7 +1,9 @@
 import { detectBankFormat } from "../parsers/parserDetector";
 import { parseAnyDate } from "./dateUtils";
 import { parseAmountToCents } from "./moneyUtils";
-import { summarizeAccountTotalsByBank } from "./n26AccountUtils";
+import { summarizeAccountTotalsByBank, sumNetTotals } from "./n26AccountUtils";
+import { getImportedSourceFileNames } from "../services/importService";
+import { buildMonthlySavingsHistory } from "./savingsHistory";
 import { normalizeAccountOwnerToAlias } from "./textUtils";
 import { findSabadellAccountOwner } from "../parsers/sabadellParser";
 import { getMovementFingerprint } from "../services/fingerprintService";
@@ -133,11 +135,11 @@ export async function runTestSuite(): Promise<TestSuiteResult> {
     // --- Test 4: Sabadell Owner Name Normalization ---
     const normalizedMoi = normalizeAccountOwnerToAlias("Moisés García");
     const normalizedManu = normalizeAccountOwnerToAlias("Manuel Pérez");
-    const ownerAliasesMatch = normalizedMoi === "Moi" && normalizedManu === "Manu";
+    const ownerAliasesMatch = normalizedMoi === "Cuenta Moi" && normalizedManu === "Cuenta Manu";
     addResult(
       "Normalizar correctamente los titulares de Sabadell",
       ownerAliasesMatch,
-      "Moi y Manu",
+      "Cuenta Moi y Cuenta Manu",
       `${normalizedMoi} y ${normalizedManu}`
     );
 
@@ -148,8 +150,8 @@ export async function runTestSuite(): Promise<TestSuiteResult> {
     ]);
     addResult(
       "Extraer correctamente el titular de Sabadell",
-      foundSabadellOwner === "Moi",
-      "Moi",
+      foundSabadellOwner === "Cuenta Moi",
+      "Cuenta Moi",
       foundSabadellOwner
     );
 
@@ -165,6 +167,57 @@ export async function runTestSuite(): Promise<TestSuiteResult> {
       n26AccountTotalsMatch,
       "Manu: -725 céntimos, Moi: 3000 céntimos",
       `Manu: ${n26AccountTotals.Manu} céntimos, Moi: ${n26AccountTotals.Moi} céntimos`
+    );
+
+    const globalBalance = sumNetTotals(1200, -250, 750);
+    addResult(
+      "Sumar correctamente el saldo global a partir de los saldos por cuenta",
+      globalBalance === 1700,
+      "1700",
+      String(globalBalance)
+    );
+
+    const importedFiles = getImportedSourceFileNames([
+      { sourceFileName: "a.csv" } as any,
+      { sourceFileName: "b.csv" } as any,
+      { sourceFileName: "a.csv" } as any,
+    ]);
+    addResult(
+      "Listar correctamente los ficheros importados únicos",
+      importedFiles.join(",") === "a.csv,b.csv",
+      "a.csv,b.csv",
+      importedFiles.join(",")
+    );
+
+    const history = buildMonthlySavingsHistory(
+      [
+        { operationDate: "2026-01-10", amount: 1000 },
+        { operationDate: "2026-02-05", amount: -200 },
+        { operationDate: "2026-02-20", amount: 500 },
+      ],
+      "2026-01-01",
+      "2026-02-28"
+    );
+    const historyLooksRight = history.length === 2 && history[0].deltaCents === 100000 && history[1].deltaCents === 30000;
+    addResult(
+      "Generar correctamente el historial mensual de ahorros",
+      historyLooksRight,
+      "2 meses con deltas correctos",
+      `${history[0].label}: ${history[0].deltaCents}, ${history[1].label}: ${history[1].deltaCents}`
+    );
+
+    const currentMonthHistory = buildMonthlySavingsHistory(
+      [{ operationDate: "2026-07-10", amount: 100.00 }],
+      "2026-07-01",
+      "2026-07-31",
+      50000,
+      60000
+    );
+    addResult(
+      "Usar el saldo actual como saldo final del mes vigente",
+      currentMonthHistory[0].endBalanceCents === 60000 && currentMonthHistory[0].deltaCents === 10000,
+      "60000 y 10000",
+      `${currentMonthHistory[0].endBalanceCents} / ${currentMonthHistory[0].deltaCents}`
     );
 
     // --- Test 6: Fingerprint Consistency ---

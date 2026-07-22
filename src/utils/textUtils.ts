@@ -21,11 +21,11 @@ export function normalizeAccountOwnerToAlias(ownerName: string): string {
   const normalized = cleanText(String(ownerName || "")).toLowerCase();
 
   if (normalized.includes("moisés") || normalized.includes("moises") || normalized.includes("moi")) {
-    return "Moi";
+    return "Cuenta Moi";
   }
 
   if (normalized.includes("manuel") || normalized.includes("manu")) {
-    return "Manu";
+    return "Cuenta Manu";
   }
 
   return cleanText(String(ownerName || ""));

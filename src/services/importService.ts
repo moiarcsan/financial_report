@@ -7,6 +7,22 @@ import { parseUnicaja } from "../parsers/unicajaParser";
 import { parseSabadell } from "../parsers/sabadellParser";
 import { type BankMovement, type FileImportResult, type GlobalImportResult } from "../types/movement";
 
+export function getImportedSourceFileNames(movements: Pick<BankMovement, "sourceFileName">[]): string[] {
+  return Array.from(new Set(movements.map((movement) => movement.sourceFileName?.trim()).filter(Boolean) as string[]));
+}
+
+export async function deleteMovementsBySourceFileName(sourceFileName: string): Promise<number> {
+  const allMovements = await db.movements.toArray();
+  const matchingMovements = allMovements.filter((movement) => movement.sourceFileName === sourceFileName);
+
+  if (matchingMovements.length === 0) {
+    return 0;
+  }
+
+  await db.movements.bulkDelete(matchingMovements.map((movement) => movement.id));
+  return matchingMovements.length;
+}
+
 /**
  * Reads a File into a SheetJS WorkBook object.
  */
