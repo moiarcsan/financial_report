@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { type BankMovement } from "../types/movement";
 import { formatDateToSpanish } from "../utils/dateUtils";
 import { formatCentsToEuro } from "../utils/moneyUtils";
-import { categorizeConcept, isBalanceTransfer, CATEGORY_COLORS } from "../utils/categoryUtils";
+import { categorizeConcept, isInternalTransfer, CATEGORY_COLORS } from "../utils/categoryUtils";
 import { useUserCategoryRules, getAllAssignableCategories, getAllCategoryColors } from "../hooks/useUserCategoryRules";
 import { type CategoryFilter } from "./ExpenseAnalysis";
 import { Calendar, Tag, CreditCard, Search, X, Filter, Check, Edit3 } from "lucide-react";
@@ -172,6 +172,9 @@ interface Filters {
   amountMax: string;
 }
 
+type SortKey = "operationDate" | "valueDate" | "bank" | "account" | "concept" | "category" | "amount";
+type SortDirection = "asc" | "desc";
+
 export const MovementTable: React.FC<MovementTableProps> = ({ movements, categoryFilter, onClearCategoryFilter }) => {
   const { rules, addRule, customCategories, customCategoryColors } = useUserCategoryRules();
   const categoryColors = getAllCategoryColors(customCategories, customCategoryColors);
@@ -187,6 +190,20 @@ export const MovementTable: React.FC<MovementTableProps> = ({ movements, categor
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  // Sort configuration: column key + direction ("asc" | "desc" | null)
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection } | null>(null);
+
+  const handleSort = (key: SortKey) => {
+    setSortConfig((prev) => {
+      if (prev && prev.key === key) {
+        // Cycle: asc → desc → none
+        if (prev.direction === "asc") return { key, direction: "desc" };
+        return null; // third click: remove sort
+      }
+      return { key, direction: "asc" };
+    });
+  };
 
   // Reset page when filters change
   const handleFilterChange = (key: keyof Filters, value: string) => {
@@ -208,15 +225,54 @@ export const MovementTable: React.FC<MovementTableProps> = ({ movements, categor
     });
   };
 
-  // Sort by date descending (most recent first)
-  const sortedMovements = [...movements].sort((a, b) => {
-    const dateCompare = b.operationDate.localeCompare(a.operationDate);
-    if (dateCompare !== 0) return dateCompare;
-    // Fallback sort: latest imported first, then higher absolute amount
-    const importedCompare = b.importedAt.localeCompare(a.importedAt);
-    if (importedCompare !== 0) return importedCompare;
-    return Math.abs(b.amount) - Math.abs(a.amount);
-  });
+  // Sort movements based on sortConfig (or default by date descending)
+  const sortedMovements = useMemo(() => {
+    const result = [...movements];
+
+    if (sortConfig) {
+      result.sort((a, b) => {
+        const { key, direction } = sortConfig;
+        let comparison = 0;
+
+        switch (key) {
+          case "operationDate":
+            comparison = a.operationDate.localeCompare(b.operationDate);
+            break;
+          case "valueDate":
+            comparison = (a.valueDate || "").localeCompare(b.valueDate || "");
+            break;
+          case "bank":
+            comparison = a.bank.localeCompare(b.bank);
+            break;
+          case "account":
+            comparison = a.account.localeCompare(b.account);
+            break;
+          case "concept":
+            comparison = a.concept.localeCompare(b.concept);
+            break;
+          case "category":
+            comparison = categorizeConcept(a.concept, rules).localeCompare(categorizeConcept(b.concept, rules));
+            break;
+          case "amount":
+            comparison = a.amount - b.amount;
+            break;
+        }
+
+        return direction === "asc" ? comparison : -comparison;
+      });
+    } else {
+      // Default: date descending (most recent first), then importedAt, then abs amount
+      result.sort((a, b) => {
+        const dateCompare = b.operationDate.localeCompare(a.operationDate);
+        if (dateCompare !== 0) return dateCompare;
+        const importedCompare = b.importedAt.localeCompare(a.importedAt);
+        if (importedCompare !== 0) return importedCompare;
+        return Math.abs(b.amount) - Math.abs(a.amount);
+      });
+    }
+
+    return result;
+  }, [movements, sortConfig, rules]);
 
   // Filter movements based on filter values + category filter
   const filteredMovements = useMemo(() => {
@@ -225,7 +281,7 @@ export const MovementTable: React.FC<MovementTableProps> = ({ movements, categor
       if (categoryFilter) {
         const isExpense = Math.round(mov.amount * 100) < 0;
         if (!isExpense) return false;
-        if (isBalanceTransfer(mov.concept)) return false;
+        if (isInternalTransfer(mov.concept, rules)) return false;
         const movCategory = categorizeConcept(mov.concept, rules);
         if (movCategory !== categoryFilter.category) return false;
         // Match the selected month
@@ -262,11 +318,6 @@ export const MovementTable: React.FC<MovementTableProps> = ({ movements, categor
     });
   }, [sortedMovements, filters, categoryFilter]);
 
-  // Calculate sum of filtered movements in cents
-  const filteredSumCents = useMemo(() => {
-    return filteredMovements.reduce((sum, mov) => sum + Math.round(mov.amount * 100), 0);
-  }, [filteredMovements]);
-
   const hasActiveFilters = Object.values(filters).some((v) => v !== "") || !!categoryFilter;
 
   const getBankBadgeClass = (bank: "N26" | "Unicaja" | "Sabadell") => {
@@ -287,6 +338,11 @@ export const MovementTable: React.FC<MovementTableProps> = ({ movements, categor
   const startIndex = (currentPage - 1) * pageSize;
   const paginatedMovements = filteredMovements.slice(startIndex, startIndex + pageSize);
 
+  // Calculate sum of paginated movements (visible rows) in cents
+  const paginatedSumCents = useMemo(() => {
+    return paginatedMovements.reduce((sum, mov) => sum + Math.round(mov.amount * 100), 0);
+  }, [paginatedMovements]);
+
   const goToFirstPage = () => setCurrentPage(1);
   const goToLastPage = () => setCurrentPage(totalPages);
   const goToNextPage = () => setCurrentPage((prev) => Math.min(prev + 1, totalPages));
@@ -296,6 +352,14 @@ export const MovementTable: React.FC<MovementTableProps> = ({ movements, categor
   const handlePageSizeChange = (newSize: number) => {
     setPageSize(newSize);
     setCurrentPage(1);
+  };
+
+  // Helper to render sort indicator
+  const renderSortIndicator = (key: SortKey) => {
+    if (sortConfig?.key === key) {
+      return <span className="text-indigo-600">{sortConfig.direction === "asc" ? "▲" : "▼"}</span>;
+    }
+    return null;
   };
 
   return (
@@ -444,13 +508,48 @@ export const MovementTable: React.FC<MovementTableProps> = ({ movements, categor
           <table className="w-full text-left border-collapse table-auto">
             <thead>
               <tr className="bg-slate-50/75 text-slate-500 font-sans text-[11px] uppercase tracking-wider border-b border-slate-100">
-                <th className="py-2 px-2 font-semibold">Fecha</th>
-                <th className="py-2 px-2 font-semibold">Valor</th>
-                <th className="py-2 px-2 font-semibold">Banco</th>
-                <th className="py-2 px-2 font-semibold">Cuenta</th>
-                <th className="py-2 px-2 font-semibold">Concepto</th>
-                <th className="py-2 px-2 font-semibold">Categoría</th>
-                <th className="py-2 px-2 text-right font-semibold">Importe</th>
+                <th className="py-2 px-2 font-semibold cursor-pointer select-none" onClick={() => handleSort("operationDate")}>
+                  <div className="flex items-center gap-1">
+                    Fecha
+                    {renderSortIndicator("operationDate")}
+                  </div>
+                </th>
+                <th className="py-2 px-2 font-semibold cursor-pointer select-none" onClick={() => handleSort("valueDate")}>
+                  <div className="flex items-center gap-1">
+                    Valor
+                    {renderSortIndicator("valueDate")}
+                  </div>
+                </th>
+                <th className="py-2 px-2 font-semibold cursor-pointer select-none" onClick={() => handleSort("bank")}>
+                  <div className="flex items-center gap-1">
+                    Banco
+                    {renderSortIndicator("bank")}
+                  </div>
+                </th>
+                <th className="py-2 px-2 font-semibold cursor-pointer select-none" onClick={() => handleSort("account")}>
+                  <div className="flex items-center gap-1">
+                    Cuenta
+                    {renderSortIndicator("account")}
+                  </div>
+                </th>
+                <th className="py-2 px-2 font-semibold cursor-pointer select-none" onClick={() => handleSort("concept")}>
+                  <div className="flex items-center gap-1">
+                    Concepto
+                    {renderSortIndicator("concept")}
+                  </div>
+                </th>
+                <th className="py-2 px-2 font-semibold cursor-pointer select-none" onClick={() => handleSort("category")}>
+                  <div className="flex items-center gap-1">
+                    Categoría
+                    {renderSortIndicator("category")}
+                  </div>
+                </th>
+                <th className="py-2 px-2 text-right font-semibold cursor-pointer select-none" onClick={() => handleSort("amount")}>
+                  <div className="flex items-center gap-1 justify-end">
+                    Importe
+                    {renderSortIndicator("amount")}
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
@@ -468,6 +567,16 @@ export const MovementTable: React.FC<MovementTableProps> = ({ movements, categor
                 />
               ))}
             </tbody>
+            <tfoot>
+              <tr className="bg-slate-50 border-t-2 border-slate-200">
+                <td colSpan={6} className="py-2.5 px-2 text-sm font-semibold text-slate-700 text-right">
+                  Total (página {currentPage})
+                </td>
+                <td className={`py-2.5 px-2 text-right whitespace-nowrap font-semibold font-sans text-sm ${paginatedSumCents >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                  {formatCentsToEuro(paginatedSumCents)}
+                </td>
+              </tr>
+            </tfoot>
           </table>
 
           {/* Pagination Controls */}

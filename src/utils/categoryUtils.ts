@@ -124,6 +124,40 @@ export function isBalanceTransfer(concept: string): boolean {
 }
 
 /**
+ * Category name used for transfers between own accounts.
+ */
+export const TRANSFER_CATEGORY = "Transferencias entre cuentas";
+
+/**
+ * Checks if a category represents a balance transfer between accounts.
+ * Accepts both the built-in name and common user variants.
+ */
+export function isTransferCategory(category: string): boolean {
+  const normalized = category.toLowerCase().trim();
+  return (
+    normalized === TRANSFER_CATEGORY.toLowerCase() ||
+    normalized === "traspaso entre cuentas" ||
+    normalized === "transferencia entre cuentas" ||
+    normalized === "traspasos entre cuentas" ||
+    normalized.includes("traspaso entre cuenta") ||
+    normalized.includes("transferencia entre cuenta")
+  );
+}
+
+/**
+ * Returns true if a movement should be treated as an internal transfer
+ * (either by concept keywords or by its resolved category, including user rules).
+ */
+export function isInternalTransfer(
+  concept: string,
+  userRules?: Map<string, string>
+): boolean {
+  if (isBalanceTransfer(concept)) return true;
+  const category = categorizeConcept(concept, userRules);
+  return isTransferCategory(category);
+}
+
+/**
  * Checks if a concept represents an income (salary, payroll, etc.)
  */
 export function isIncome(concept: string): boolean {
@@ -461,13 +495,16 @@ export function categorizeConcept(
     }
   }
 
-  // 2) Check income
+  // 2) Balance transfers between accounts
+  if (isBalanceTransfer(normalized)) return TRANSFER_CATEGORY;
+
+  // 3) Check income
   if (isIncome(normalized)) return "Nómina / Ingresos";
 
-  // 3) Check saving/investment
+  // 4) Check saving/investment
   if (isSavingOrInvestment(normalized)) return "Ahorro / Inversión";
 
-  // 4) Keyword matching
+  // 5) Keyword matching
   for (const { keywords, category } of KEYWORD_CATEGORIES) {
     for (const keyword of keywords) {
       if (normalized.includes(keyword)) {
@@ -505,8 +542,8 @@ export function summarizeExpensesByCategory(
     const cents = Math.round(mov.amount * 100);
     if (cents >= 0) continue; // Only expenses (negative amounts)
 
-    // Exclude balance transfers between accounts
-    if (isBalanceTransfer(mov.concept)) continue;
+    // Exclude balance transfers between accounts (by concept or resolved category)
+    if (isInternalTransfer(mov.concept, userRules)) continue;
 
     const category = categorizeConcept(mov.concept, userRules);
     if (!totals[category]) {
@@ -541,7 +578,7 @@ export function getUncategorizedMovements(
   return movements.filter((mov) => {
     const cents = Math.round(mov.amount * 100);
     if (cents >= 0) return false;
-    if (isBalanceTransfer(mov.concept)) return false;
+    if (isInternalTransfer(mov.concept, userRules)) return false;
     return categorizeConcept(mov.concept, userRules) === "Otros";
   });
 }

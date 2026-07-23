@@ -2,17 +2,21 @@ import { useState, useEffect } from "react";
 import { db } from "./database/database";
 import { type BankMovement, type GlobalImportResult } from "./types/movement";
 import { deleteMovementsBySourceFileName, getImportedSourceFileNames, processMultipleFiles } from "./services/importService";
+import { getCurrentSession, logout, type UserProfile } from "./services/authService";
 import { MovementSummary } from "./components/MovementSummary";
 import { ImportButton } from "./components/ImportButton";
 import { ImportSummary } from "./components/ImportSummary";
 import { MovementTable } from "./components/MovementTable";
 import { SavingsHistory } from "./components/SavingsHistory";
+import { IncomeVsExpensesChart } from "./components/IncomeVsExpensesChart";
 import { ExpenseAnalysis, type CategoryFilter } from "./components/ExpenseAnalysis";
+import { LoginScreen } from "./components/LoginScreen";
 import { useUserCategoryRules } from "./hooks/useUserCategoryRules";
+import { useInactivityLogout } from "./hooks/useInactivityLogout";
 import { summarizeAccountTotalsByBank, sumNetTotals } from "./utils/n26AccountUtils";
 import { normalizeAccountOwnerToAlias } from "./utils/textUtils";
 import { buildMonthlySavingsHistory } from "./utils/savingsHistory";
-import { Wallet, Menu } from "lucide-react";
+import { Wallet, Menu, LogOut } from "lucide-react";
 
 export default function App() {
   const [movements, setMovements] = useState<BankMovement[]>([]);
@@ -25,8 +29,27 @@ export default function App() {
     return saved ? parseInt(saved, 10) : 200000;
   });
 
-  // Load all saved movements from IndexedDB on startup
+  // Auth state
+  const [session, setSession] = useState<UserProfile | null>(() => getCurrentSession());
+
+  const handleLoginSuccess = (profile: UserProfile) => {
+    setSession(profile);
+  };
+
+  const handleLogout = () => {
+    logout();
+    setSession(null);
+    setMovements([]);
+    setImportSummary(null);
+    setCategoryFilter(null);
+  };
+
+  // Inactivity logout (15 minutes)
+  useInactivityLogout(15 * 60 * 1000, handleLogout);
+
+  // Load all saved movements from IndexedDB on startup (only when authenticated)
   const loadMovements = async () => {
+    if (!session) return;
     try {
       const all = await db.movements.toArray();
       const normalizedMovements = all.map((movement) => {
@@ -55,7 +78,12 @@ export default function App() {
 
   useEffect(() => {
     loadMovements();
-  }, []);
+  }, [session]);
+
+  // Show login screen if not authenticated
+  if (!session) {
+    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+  }
 
   // Handle file uploads
   const handleFilesSelected = async (files: FileList) => {
@@ -242,15 +270,26 @@ export default function App() {
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
               <span>Local Storage / IndexedDB Activo</span>
             </div>
-            <button
-              id="btn-open-sidebar"
-              onClick={() => setIsSidebarOpen(true)}
-              className="inline-flex items-center gap-2 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-semibold transition-all cursor-pointer"
-              title="Abrir menú de administración"
-            >
-              <Menu size={18} />
-              <span>Importar / Ajustes</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                id="btn-open-sidebar"
+                onClick={() => setIsSidebarOpen(true)}
+                className="inline-flex items-center gap-2 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-semibold transition-all cursor-pointer"
+                title="Abrir menú de administración"
+              >
+                <Menu size={18} />
+                <span>Importar / Ajustes</span>
+              </button>
+              <button
+                id="btn-logout"
+                onClick={handleLogout}
+                className="inline-flex items-center gap-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-sm font-semibold transition-all cursor-pointer"
+                title="Cerrar sesión"
+              >
+                <LogOut size={16} />
+                <span>Cerrar sesión</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -293,6 +332,9 @@ export default function App() {
           monthlyTargetCents={monthlyTargetCents}
           onMonthlyTargetChange={handleMonthlyTargetChange}
         />
+
+        {/* Income vs Expenses Chart */}
+        <IncomeVsExpensesChart movements={movements} />
 
         {/* Expense Analysis Section */}
         <ExpenseAnalysis

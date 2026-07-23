@@ -269,7 +269,7 @@ export const ExpenseAnalysis: React.FC<ExpenseAnalysisProps> = ({ movements, onC
               <select
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                className="text-sm font-mono text-slate-700 border border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white cursor-pointer"
+                className="text-sm font-sans text-slate-700 border border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white cursor-pointer"
                 aria-label="Seleccionar mes"
               >
                 {availableMonths.map((month) => (
@@ -346,11 +346,11 @@ export const ExpenseAnalysis: React.FC<ExpenseAnalysisProps> = ({ movements, onC
         </div>
       ) : (
         <div className="p-6">
-          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             {/* Donut Chart */}
             <div className="flex-1 flex flex-col items-center">
-              <div className="relative" style={{ width: 320, height: 320 }}>
-                <svg width="320" height="320" viewBox="0 0 200 200">
+              <div className="relative" style={{ width: 420, height: 420 }}>
+                <svg width="420" height="420" viewBox="0 0 200 200">
                   {/* Background circle */}
                   <circle
                     cx={centerX}
@@ -387,17 +387,17 @@ export const ExpenseAnalysis: React.FC<ExpenseAnalysisProps> = ({ movements, onC
                   {/* Center label */}
                   <text
                     x={centerX}
-                    y={centerY - 8}
+                    y={centerY - 14}
                     textAnchor="middle"
-                    className="text-xs font-mono fill-slate-500"
+                    className="text-sm font-sans fill-slate-500 uppercase tracking-wider"
                   >
-                    Total gastos
+                    Total
                   </text>
                   <text
                     x={centerX}
-                    y={centerY + 10}
+                    y={centerY + 4}
                     textAnchor="middle"
-                    className="text-lg font-sans font-bold fill-slate-800"
+                    className="text-xl font-sans font-bold fill-slate-800"
                   >
                     {formatCentsToEuro(totalExpensesCents)}
                   </text>
@@ -405,7 +405,7 @@ export const ExpenseAnalysis: React.FC<ExpenseAnalysisProps> = ({ movements, onC
 
                 {/* Hover tooltip */}
                 {hoveredCategory && (
-                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-3 py-1.5 rounded-lg text-xs font-mono whitespace-nowrap">
+                  <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-3 py-1.5 rounded-lg text-xs font-sans whitespace-nowrap shadow-lg z-20">
                     {hoveredCategory}
                   </div>
                 )}
@@ -419,21 +419,21 @@ export const ExpenseAnalysis: React.FC<ExpenseAnalysisProps> = ({ movements, onC
             </div>
 
             {/* Legend Table */}
-            <div className="lg:w-[400px] w-full">
-              <div className="max-h-[380px] overflow-y-auto rounded-xl border border-slate-200">
+            <div className="lg:w-[420px] w-full">
+              <div className="rounded-xl border border-slate-200 overflow-hidden">
                 <table className="w-full text-left border-collapse">
-                  <thead className="sticky top-0 bg-slate-50 z-10">
-                    <tr className="text-slate-500 font-mono text-[11px] uppercase tracking-wider border-b border-slate-100">
-                      <th className="py-3 px-4 font-semibold">Categoría</th>
-                      <th className="py-3 px-4 font-semibold text-right">Importe</th>
-                      <th className="py-3 px-4 font-semibold text-right">%</th>
+                  <thead className="bg-slate-50">
+                    <tr className="text-slate-500 font-sans text-[11px] uppercase tracking-wider">
+                      <th className="py-2.5 px-3 font-semibold">Categoría</th>
+                      <th className="py-2.5 px-3 font-semibold text-right">Importe</th>
+                      <th className="py-2.5 px-3 font-semibold text-right">%</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 text-sm">
+                  <tbody className="divide-y divide-slate-100">
                     {categorySummaries.map((cat) => (
                       <tr
                         key={cat.category}
-                        className="hover:bg-slate-50/50 transition-colors"
+                        className="hover:bg-slate-50/70 transition-colors"
                         onMouseEnter={() => setHoveredCategory(cat.category)}
                         onMouseLeave={() => setHoveredCategory(null)}
                         onClick={() => {
@@ -447,35 +447,24 @@ export const ExpenseAnalysis: React.FC<ExpenseAnalysisProps> = ({ movements, onC
                           cursor: "pointer",
                         }}
                       >
-                        <td className="py-3 px-4">
+                        <td className="py-2 px-3">
                           <div className="flex items-center gap-2">
                             <span
-                              className="w-3 h-3 rounded-full shrink-0"
+                              className="w-2.5 h-2.5 rounded-full shrink-0"
                               style={{ backgroundColor: categoryColors[cat.category] || cat.color }}
                             />
-                            <span className="text-slate-700 font-medium">{cat.category}</span>
+                            <span className="text-slate-700 font-medium text-sm">{cat.category}</span>
                           </div>
                         </td>
-                        <td className="py-3 px-4 text-right font-sans text-slate-800">
+                        <td className="py-2 px-3 text-right font-sans text-slate-800 text-sm">
                           {formatCentsToEuro(cat.totalCents)}
                         </td>
-                        <td className="py-3 px-4 text-right font-sans text-slate-500">
+                        <td className="py-2 px-3 text-right font-sans text-slate-600 text-sm">
                           {cat.percentage.toFixed(1)}%
                         </td>
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot>
-                    <tr className="bg-slate-900/5 border-t-2 border-slate-200">
-                      <td className="py-3 px-4 text-sm font-semibold text-slate-700">Total</td>
-                      <td className="py-3 px-4 text-right font-sans font-bold text-slate-800">
-                        {formatCentsToEuro(totalExpensesCents)}
-                      </td>
-                      <td className="py-3 px-4 text-right font-sans font-bold text-slate-500">
-                        100%
-                      </td>
-                    </tr>
-                  </tfoot>
                 </table>
               </div>
             </div>
