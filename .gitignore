@@ -3,3 +3,5 @@ package-lock.json
 dist/
 .env
 .env.local
+src/components/LoginScreen.tsx
+.DS_Store

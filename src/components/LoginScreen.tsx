@@ -130,7 +130,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           {/* Footer hint */}
           <div className="mt-6 pt-4 border-t border-slate-100 text-center">
             <p className="text-xs text-slate-400">
-              Los datos se almacenan localmente en tu navegador.
+              Tus datos se sincronizan con Supabase en la nube.
               <br />
               La sesión se cierra automáticamente por inactividad.
             </p>

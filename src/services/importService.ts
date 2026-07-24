@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { db } from "../database/database";
+import { supabase } from "./supabaseClient";
 import { getMovementFingerprint } from "./fingerprintService";
 import { detectBankFormat } from "../parsers/parserDetector";
 import { parseN26 } from "../parsers/n26Parser";
@@ -8,19 +8,43 @@ import { parseSabadell } from "../parsers/sabadellParser";
 import { type BankMovement, type FileImportResult, type GlobalImportResult } from "../types/movement";
 
 export function getImportedSourceFileNames(movements: Pick<BankMovement, "sourceFileName">[]): string[] {
-  return Array.from(new Set(movements.map((movement) => movement.sourceFileName?.trim()).filter(Boolean) as string[]));
+  return Array.from(new Set(movements.map((movement) => movement.sourceFileName?.trim()).filter(Boolean))) as string[];
 }
 
-export async function deleteMovementsBySourceFileName(sourceFileName: string): Promise<number> {
-  const allMovements = await db.movements.toArray();
-  const matchingMovements = allMovements.filter((movement) => movement.sourceFileName === sourceFileName);
+/**
+ * Checks if a movement already exists in Supabase for the given user.
+ */
+async function movementExists(userId: string, fingerprint: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("movements")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("id", fingerprint)
+    .single();
 
-  if (matchingMovements.length === 0) {
-    return 0;
-  }
+  return !error && !!data;
+}
 
-  await db.movements.bulkDelete(matchingMovements.map((movement) => movement.id));
-  return matchingMovements.length;
+/**
+ * Saves movements to Supabase.
+ */
+async function saveMovementsToSupabase(userId: string, movements: BankMovement[]): Promise<void> {
+  const supabaseMovements = movements.map((m) => ({
+    id: m.fingerprint,
+    user_id: userId,
+    bank: m.bank,
+    account: m.account,
+    operation_date: m.operationDate,
+    value_date: m.valueDate,
+    concept: m.concept,
+    amount: m.amount,
+    currency: m.currency,
+    source_file_name: m.sourceFileName,
+    imported_at: m.importedAt,
+  }));
+
+  const { error } = await supabase.from("movements").upsert(supabaseMovements);
+  if (error) throw error;
 }
 
 /**
@@ -44,9 +68,14 @@ function readWorkbook(file: File): Promise<XLSX.WorkBook> {
 }
 
 /**
- * Processes a single bank statement file, performs validation, and persists new records.
+ * Processes a single bank statement file, performs validation, and persists new records to Supabase.
+ * @param file - The file to process
+ * @param userId - The user ID for Supabase (optional, for cloud sync)
  */
-export async function processFile(file: File): Promise<FileImportResult> {
+export async function processFile(
+  file: File,
+  userId?: string
+): Promise<FileImportResult> {
   const result: FileImportResult = {
     fileName: file.name,
     bankDetected: "Desconocido",
@@ -119,11 +148,22 @@ export async function processFile(file: File): Promise<FileImportResult> {
         mov.amount
       );
 
-      // Check if it already exists in IndexedDB
-      const existing = await db.movements.get(fingerprint);
-      if (existing) {
-        dupCount++;
+      // Check if it already exists in Supabase (or skip check if no userId)
+      if (userId) {
+        const exists = await movementExists(userId, fingerprint);
+        if (exists) {
+          dupCount++;
+        } else {
+          newCount++;
+          movementsToSave.push({
+            ...mov,
+            id: fingerprint,
+            fingerprint,
+            importedAt: new Date().toISOString(),
+          });
+        }
       } else {
+        // Fallback: no user, just count as new
         newCount++;
         movementsToSave.push({
           ...mov,
@@ -137,9 +177,9 @@ export async function processFile(file: File): Promise<FileImportResult> {
     result.movementsNew = newCount;
     result.movementsDuplicated = dupCount;
 
-    // Save only if validation passes and there are new items
-    if (movementsToSave.length > 0) {
-      await db.movements.bulkAdd(movementsToSave);
+    // Save to Supabase if userId is provided and there are new items
+    if (movementsToSave.length > 0 && userId) {
+      await saveMovementsToSupabase(userId, movementsToSave);
     }
 
     result.status = "success";
@@ -153,12 +193,17 @@ export async function processFile(file: File): Promise<FileImportResult> {
 
 /**
  * Processes multiple uploaded files sequentially and returns the total results.
+ * @param files - The files to process
+ * @param userId - The user ID for Supabase (optional, for cloud sync)
  */
-export async function processMultipleFiles(files: File[]): Promise<GlobalImportResult> {
+export async function processMultipleFiles(
+  files: File[],
+  userId?: string
+): Promise<GlobalImportResult> {
   const fileResults: FileImportResult[] = [];
   
   for (const file of files) {
-    const res = await processFile(file);
+    const res = await processFile(file, userId);
     fileResults.push(res);
   }
 

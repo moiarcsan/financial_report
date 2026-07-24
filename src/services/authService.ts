@@ -4,7 +4,7 @@
  * - Los usuarios y contraseñas se leen desde variables de entorno de Vite.
  * - Las contraseñas se almacenan como hashes SHA-256 (más seguro que texto plano).
  * - La sesión se guarda en sessionStorage (se borra al cerrar la pestaña).
- * - La contraseña nunca se persiste: solo se valida en memoria.
+ * - La contraseña NUNCA se persiste: solo se valida en memoria.
  */
 
 export interface UserProfile {

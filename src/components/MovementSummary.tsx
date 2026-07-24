@@ -8,6 +8,7 @@ interface MovementSummaryProps {
   n26NetCents: number;
   n26AccountTotals: Record<string, number>;
   unicajaNetCents: number;
+  unicajaAccountTotals: Record<string, number>;
   sabadellNetCents: number;
   sabadellAccountTotals: Record<string, number>;
 }
@@ -18,6 +19,7 @@ export const MovementSummary: React.FC<MovementSummaryProps> = ({
   n26NetCents,
   n26AccountTotals,
   unicajaNetCents,
+  unicajaAccountTotals,
   sabadellNetCents,
   sabadellAccountTotals,
 }) => {
@@ -94,6 +96,22 @@ export const MovementSummary: React.FC<MovementSummaryProps> = ({
           <h4 className={`text-xl font-sans font-semibold mt-1 ${unicajaNetCents >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
             {formatCentsToEuro(unicajaNetCents)}
           </h4>
+          <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+            {Object.entries(unicajaAccountTotals as Record<string, number>).length > 0 ? (
+              (Object.entries(unicajaAccountTotals as Record<string, number>) as [string, number][])
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([accountName, totalCents]) => (
+                  <div key={accountName} className="flex items-center justify-between text-sm">
+                    <span className="text-slate-600">{accountName}</span>
+                    <span className={`font-semibold ${totalCents >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                      {formatCentsToEuro(totalCents)}
+                    </span>
+                  </div>
+                ))
+            ) : (
+              <p className="text-sm text-slate-400">Sin cuentas Unicaja diferenciadas</p>
+            )}
+          </div>
         </div>
       </div>
 

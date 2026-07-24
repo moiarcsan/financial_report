@@ -1,7 +1,6 @@
-import { useState, useEffect } from "react";
-import { db } from "./database/database";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { type BankMovement, type GlobalImportResult } from "./types/movement";
-import { deleteMovementsBySourceFileName, getImportedSourceFileNames, processMultipleFiles } from "./services/importService";
+import { processMultipleFiles } from "./services/importService";
 import { getCurrentSession, logout, type UserProfile } from "./services/authService";
 import { MovementSummary } from "./components/MovementSummary";
 import { ImportButton } from "./components/ImportButton";
@@ -11,15 +10,15 @@ import { SavingsHistory } from "./components/SavingsHistory";
 import { IncomeVsExpensesChart } from "./components/IncomeVsExpensesChart";
 import { ExpenseAnalysis, type CategoryFilter } from "./components/ExpenseAnalysis";
 import { LoginScreen } from "./components/LoginScreen";
-import { useUserCategoryRules } from "./hooks/useUserCategoryRules";
+import { useSupabaseSync } from "./hooks/useSupabaseSync";
 import { useInactivityLogout } from "./hooks/useInactivityLogout";
 import { summarizeAccountTotalsByBank, sumNetTotals } from "./utils/n26AccountUtils";
 import { normalizeAccountOwnerToAlias } from "./utils/textUtils";
 import { buildMonthlySavingsHistory } from "./utils/savingsHistory";
-import { Wallet, Menu, LogOut } from "lucide-react";
+import { Wallet, Menu, LogOut, Loader2 } from "lucide-react";
 
 export default function App() {
-  const [movements, setMovements] = useState<BankMovement[]>([]);
+  // All useState hooks first
   const [importSummary, setImportSummary] = useState<GlobalImportResult | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -28,110 +27,154 @@ export default function App() {
     const saved = localStorage.getItem("monthlyTargetCents");
     return saved ? parseInt(saved, 10) : 200000;
   });
+  const [session, setSession] = useState<UserProfile | null>(null);
 
-  // Auth state
-  const [session, setSession] = useState<UserProfile | null>(() => getCurrentSession());
+  // All custom hooks next (in the same order every render)
+  const {
+    movements: supabaseMovements,
+    categoryRules,
+    customCategories,
+    customCategoryColors,
+    isLoading: isSyncLoading,
+    error: syncError,
+    isSupabaseAvailable,
+    deleteMovementsByFile,
+    clearMovements,
+    refreshData,
+  } = useSupabaseSync(session?.id || null);
 
-  const handleLoginSuccess = (profile: UserProfile) => {
-    setSession(profile);
-  };
-
-  const handleLogout = () => {
-    logout();
-    setSession(null);
-    setMovements([]);
-    setImportSummary(null);
-    setCategoryFilter(null);
-  };
-
-  // Inactivity logout (15 minutes)
-  useInactivityLogout(15 * 60 * 1000, handleLogout);
-
-  // Load all saved movements from IndexedDB on startup (only when authenticated)
-  const loadMovements = async () => {
-    if (!session) return;
-    try {
-      const all = await db.movements.toArray();
-      const normalizedMovements = all.map((movement) => {
-        if (movement.bank === "Unicaja") {
-          return {
-            ...movement,
-            account: "Cuenta M&M",
-          };
-        }
-
-        if (movement.bank === "Sabadell") {
-          return {
-            ...movement,
-            account: normalizeAccountOwnerToAlias(movement.account),
-          };
-        }
-
-        return movement;
-      });
-
-      setMovements(normalizedMovements);
-    } catch (err) {
-      console.error("Error cargando movimientos de IndexedDB:", err);
+  // All useEffect hooks
+  useEffect(() => {
+    const existingSession = getCurrentSession();
+    if (existingSession) {
+      setSession(existingSession);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadMovements();
-  }, [session]);
+    if (!isSupabaseAvailable && session) {
+      console.warn("Supabase not available, clearing session");
+      logout();
+      setSession(null);
+    }
+  }, [isSupabaseAvailable, session]);
+
+  // All useCallback hooks
+  const handleLoginSuccess = useCallback((profile: UserProfile) => {
+    setSession(profile);
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    logout();
+    setSession(null);
+    setImportSummary(null);
+    setCategoryFilter(null);
+  }, []);
+
+  const handleFilesSelected = useCallback(async (files: FileList) => {
+    setIsProcessing(true);
+    try {
+      const fileArray = Array.from(files);
+      const result = await processMultipleFiles(fileArray, session?.id);
+      setImportSummary(result);
+      await refreshData();
+    } catch (err) {
+      console.error("Error al procesar los archivos:", err);
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [session?.id, refreshData]);
+
+  const handleClearDatabase = useCallback(async () => {
+    try {
+      await clearMovements();
+      setImportSummary(null);
+    } catch (err) {
+      console.error("Error al vaciar la base de datos:", err);
+    }
+  }, [clearMovements]);
+
+  const handleRemoveFileData = useCallback(async (fileName: string) => {
+    try {
+      await deleteMovementsByFile(fileName);
+      setImportSummary(null);
+    } catch (err) {
+      console.error("Error al borrar los movimientos del fichero:", err);
+    }
+  }, [deleteMovementsByFile]);
+
+  const handleCloseSummary = useCallback(() => {
+    setImportSummary(null);
+  }, []);
+
+  const handleMonthlyTargetChange = useCallback((euros: number) => {
+    const cents = Math.round(euros * 100);
+    setMonthlyTargetCents(cents);
+    localStorage.setItem("monthlyTargetCents", cents.toString());
+  }, []);
+
+  // useInactivityLogout hook
+  useInactivityLogout(15 * 60 * 1000, handleLogout);
+
+  // All useMemo hooks
+  const movements = useMemo(() => {
+    return supabaseMovements.map((movement) => {
+      if (movement.bank === "Unicaja") {
+        return {
+          ...movement,
+          account: "Cuenta M&M",
+        };
+      }
+
+      if (movement.bank === "Sabadell") {
+        return {
+          ...movement,
+          account: normalizeAccountOwnerToAlias(movement.account),
+        };
+      }
+
+      return movement;
+    });
+  }, [supabaseMovements]);
+
+  const importedFileNames = useMemo(() => {
+    return Array.from(new Set(movements.map((m) => m.sourceFileName)));
+  }, [movements]);
 
   // Show login screen if not authenticated
   if (!session) {
     return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
   }
 
-  // Handle file uploads
-  const handleFilesSelected = async (files: FileList) => {
-    setIsProcessing(true);
-    try {
-      const fileArray = Array.from(files);
-      const result = await processMultipleFiles(fileArray);
-      setImportSummary(result);
-      await loadMovements();
-    } catch (err) {
-      console.error("Error al procesar los archivos:", err);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+  // Show loading state while syncing with Supabase
+  if (isSyncLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mx-auto mb-4" />
+          <p className="text-slate-600">Cargando datos desde Supabase...</p>
+        </div>
+      </div>
+    );
+  }
 
-  // Clear database
-  const handleClearDatabase = async () => {
-    try {
-      await db.movements.clear();
-      setImportSummary(null);
-      await loadMovements();
-    } catch (err) {
-      console.error("Error al vaciar la base de datos:", err);
-    }
-  };
-
-  const handleRemoveFileData = async (fileName: string) => {
-    try {
-      await deleteMovementsBySourceFileName(fileName);
-      setImportSummary(null);
-      await loadMovements();
-    } catch (err) {
-      console.error("Error al borrar los movimientos del fichero:", err);
-    }
-  };
-
-  // Close the import result panel
-  const handleCloseSummary = () => {
-    setImportSummary(null);
-  };
-
-  // Update the monthly savings target (persisted in localStorage)
-  const handleMonthlyTargetChange = (euros: number) => {
-    const cents = Math.round(euros * 100);
-    setMonthlyTargetCents(cents);
-    localStorage.setItem("monthlyTargetCents", cents.toString());
-  };
+  // Show error state if Supabase is not available
+  if (syncError && !isSupabaseAvailable) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl border border-rose-200 shadow-sm p-8 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Wallet size={32} />
+          </div>
+          <h2 className="text-xl font-sans font-bold text-slate-900 mb-2">Error de conexión</h2>
+          <p className="text-sm text-slate-600 mb-4">{syncError}</p>
+          <p className="text-xs text-slate-500">
+            Asegúrate de que las tablas de Supabase están creadas y las credenciales son correctas.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // Safely calculate net totals in cents to avoid floats errors
   const totalCount = movements.length;
@@ -268,8 +311,13 @@ export default function App() {
           <div className="flex items-center gap-4">
             <div className="hidden sm:flex items-center gap-2 text-xs font-semibold text-slate-500 font-mono">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>Local Storage / IndexedDB Activo</span>
+              <span>Conectado a Supabase</span>
             </div>
+            {syncError && (
+              <div className="text-xs text-rose-600 font-medium">
+                Error: {syncError}
+              </div>
+            )}
             <div className="flex items-center gap-3">
               <button
                 id="btn-open-sidebar"
@@ -316,7 +364,7 @@ export default function App() {
           onFilesSelected={handleFilesSelected}
           onClearDatabase={handleClearDatabase}
           onRemoveFileData={handleRemoveFileData}
-          importedFileNames={getImportedSourceFileNames(movements)}
+          importedFileNames={importedFileNames}
           isProcessing={isProcessing}
         />
 
@@ -353,7 +401,7 @@ export default function App() {
 
       {/* Footer */}
       <footer id="app-footer" className="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-400 mt-auto">
-        <p>© 2026 Control Financiero del Hogar. Todo procesado de forma local y segura.</p>
+        <p>© 2026 Control Financiero del Hogar. Todo sincronizado con Supabase.</p>
       </footer>
     </div>
   );
