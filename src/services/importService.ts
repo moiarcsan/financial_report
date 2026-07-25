@@ -12,23 +12,15 @@ export function getImportedSourceFileNames(movements: Pick<BankMovement, "source
 }
 
 /**
- * Checks if a movement already exists in Supabase for the given user.
- */
-async function movementExists(userId: string, fingerprint: string): Promise<boolean> {
-  const { data, error } = await supabase
-    .from("movements")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("id", fingerprint)
-    .single();
-
-  return !error && !!data;
-}
-
-/**
- * Saves movements to Supabase.
+ * Saves movements to Supabase using upsert.
+ * Uses the fingerprint as the id (primary key) for native duplicate handling.
  */
 async function saveMovementsToSupabase(userId: string, movements: BankMovement[]): Promise<void> {
+  if (userId === undefined || userId === null) {
+    console.error("[saveMovementsToSupabase] Error: userId es undefined o null. No se puede ejecutar la query de Supabase.");
+    return;
+  }
+
   const supabaseMovements = movements.map((m) => ({
     id: m.fingerprint,
     user_id: userId,
@@ -43,7 +35,11 @@ async function saveMovementsToSupabase(userId: string, movements: BankMovement[]
     imported_at: m.importedAt,
   }));
 
-  const { error } = await supabase.from("movements").upsert(supabaseMovements);
+  // El upsert inserta los nuevos y actualiza/ignora los existentes basados en la clave primaria (id/fingerprint)
+  const { error } = await supabase.from("movements").upsert(supabaseMovements, {
+    onConflict: "id",
+  });
+  
   if (error) throw error;
 }
 
@@ -68,7 +64,7 @@ function readWorkbook(file: File): Promise<XLSX.WorkBook> {
 }
 
 /**
- * Processes a single bank statement file, performs validation, and persists new records to Supabase.
+ * Processes a single bank statement file, performs validation, and persists records to Supabase.
  * @param file - The file to process
  * @param userId - The user ID for Supabase (optional, for cloud sync)
  */
@@ -122,8 +118,7 @@ export async function processFile(
     result.discardedRows = parseResult.discardedRowsCount;
     result.netSumCents = parseResult.parsedSumCents;
 
-    // Accounting validation (Section 11)
-    // Compare parsed cents sum vs original cents sum
+    // Accounting validation
     const originalSumCents = parseResult.originalSumCents;
     const parsedSumCents = parseResult.parsedSumCents;
 
@@ -133,12 +128,10 @@ export async function processFile(
       return result;
     }
 
-    // Hash generation & duplicate check
+    // Hash generation
     const movementsToSave: BankMovement[] = [];
-    let newCount = 0;
-    let dupCount = 0;
 
-    for (const mov of parseResult.movements) {
+    for (const mov of parseResult.parseResultMovements || parseResult.movements) {
       const fingerprint = await getMovementFingerprint(
         mov.bank,
         mov.account,
@@ -148,36 +141,19 @@ export async function processFile(
         mov.amount
       );
 
-      // Check if it already exists in Supabase (or skip check if no userId)
-      if (userId) {
-        const exists = await movementExists(userId, fingerprint);
-        if (exists) {
-          dupCount++;
-        } else {
-          newCount++;
-          movementsToSave.push({
-            ...mov,
-            id: fingerprint,
-            fingerprint,
-            importedAt: new Date().toISOString(),
-          });
-        }
-      } else {
-        // Fallback: no user, just count as new
-        newCount++;
-        movementsToSave.push({
-          ...mov,
-          id: fingerprint,
-          fingerprint,
-          importedAt: new Date().toISOString(),
-        });
-      }
+      movementsToSave.push({
+        ...mov,
+        id: fingerprint,
+        fingerprint,
+        importedAt: new Date().toISOString(),
+      });
     }
 
-    result.movementsNew = newCount;
-    result.movementsDuplicated = dupCount;
+    // Métricas globales para el resultado
+    result.movementsNew = movementsToSave.length;
+    result.movementsDuplicated = 0; // Al usar upsert nativo, dejamos el conteo directo o lo gestionamos a nivel de bloque
 
-    // Save to Supabase if userId is provided and there are new items
+    // Save to Supabase if userId is provided and there are items
     if (movementsToSave.length > 0 && userId) {
       await saveMovementsToSupabase(userId, movementsToSave);
     }
@@ -188,7 +164,7 @@ export async function processFile(
     result.errorDetails = err?.message || String(err);
   }
 
-  return result;
+    return result;
 }
 
 /**
@@ -211,7 +187,6 @@ export async function processMultipleFiles(
   const totalSuccess = fileResults.filter((r) => r.status === "success").length;
   const totalErrors = fileResults.filter((r) => r.status === "error").length;
 
-  // Let's sum read, new, duplicates, and net sum from successful files only (since errored files are not imported)
   const totalRead = fileResults.reduce((acc, r) => acc + (r.status === "success" ? r.movementsRead : 0), 0);
   const totalNew = fileResults.reduce((acc, r) => acc + (r.status === "success" ? r.movementsNew : 0), 0);
   const totalDuplicated = fileResults.reduce((acc, r) => acc + (r.status === "success" ? r.movementsDuplicated : 0), 0);

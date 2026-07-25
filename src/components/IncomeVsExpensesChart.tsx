@@ -90,9 +90,14 @@ export const IncomeVsExpensesChart: React.FC<IncomeVsExpensesChartProps> = ({ mo
     };
   }, [monthlyMovements]);
 
+  const totalCents = incomeCents + expenseCents;
   const maxAmount = Math.max(incomeCents, expenseCents);
   const incomeWidth = maxAmount > 0 ? (incomeCents / maxAmount) * 100 : 0;
   const expenseWidth = maxAmount > 0 ? (expenseCents / maxAmount) * 100 : 0;
+
+  // Calculate percentages based on total
+  const incomePercent = totalCents > 0 ? (incomeCents / totalCents) * 100 : 0;
+  const expensePercent = totalCents > 0 ? (expenseCents / totalCents) * 100 : 0;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm mb-8">
@@ -146,9 +151,9 @@ export const IncomeVsExpensesChart: React.FC<IncomeVsExpensesChartProps> = ({ mo
                 className="bg-emerald-500 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-3"
                 style={{ width: `${incomeWidth}%` }}
               >
-                {incomeWidth > 15 && (
+                {incomeCents > 0 && (
                   <span className="text-xs font-semibold text-white">
-                    {incomeCents > 0 ? ((incomeCents / (incomeCents + expenseCents)) * 100).toFixed(1) : 0}%
+                    {incomePercent.toFixed(1)}%
                   </span>
                 )}
               </div>
@@ -174,9 +179,9 @@ export const IncomeVsExpensesChart: React.FC<IncomeVsExpensesChartProps> = ({ mo
                 className="bg-rose-500 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-3"
                 style={{ width: `${expenseWidth}%` }}
               >
-                {expenseWidth > 15 && (
+                {expenseCents > 0 && (
                   <span className="text-xs font-semibold text-white">
-                    {expenseCents > 0 ? ((expenseCents / (incomeCents + expenseCents)) * 100).toFixed(1) : 0}%
+                    {expensePercent.toFixed(1)}%
                   </span>
                 )}
               </div>

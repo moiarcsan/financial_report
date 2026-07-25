@@ -6,7 +6,7 @@ create extension if not exists "uuid-ossp";
 
 -- Movements table: stores all bank transactions
 create table if not exists movements (
-    id text primary key,
+    id uuid primary key default uuid_generate_v4(),
     user_id text not null,
     bank text not null check (bank in ('N26', 'Unicaja', 'Sabadell')),
     account text not null,
@@ -16,6 +16,7 @@ create table if not exists movements (
     amount numeric not null,
     currency text not null default 'EUR' check (currency = 'EUR'),
     source_file_name text not null,
+    external_id text, -- Hash fingerprint for duplicate detection
     imported_at timestamp not null,
     created_at timestamp default now()
 );
@@ -24,6 +25,7 @@ create table if not exists movements (
 create index if not exists idx_movements_user_id on movements(user_id);
 create index if not exists idx_movements_operation_date on movements(operation_date desc);
 create index if not exists idx_movements_user_date on movements(user_id, operation_date desc);
+create index if not exists idx_movements_external_id on movements(external_id);
 
 -- Category rules table: user-defined keyword → category mappings
 create table if not exists category_rules (
@@ -77,3 +79,20 @@ create policy if not exists "custom_categories_policy"
 -- 1. Create users in Supabase Auth
 -- 2. Use auth.uid() instead of user_id in the policies
 -- 3. Modify the app to use Supabase Auth
+
+-- ============================================================================
+-- MIGRATION SCRIPT: Run this if the movements table already exists
+-- This adds the external_id column and updates the id column to UUID
+-- ============================================================================
+DO $$
+BEGIN
+    -- Add external_id column if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'movements' AND column_name = 'external_id') THEN
+        ALTER TABLE movements ADD COLUMN external_id text;
+    END IF;
+    
+    -- Create index on external_id for faster duplicate checks
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'movements' AND indexname = 'idx_movements_external_id') THEN
+        CREATE INDEX idx_movements_external_id ON movements(external_id);
+    END IF;
+END $$;
