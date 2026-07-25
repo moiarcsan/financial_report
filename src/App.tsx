@@ -386,6 +386,7 @@ export default function App() {
 
         {/* Expense Analysis Section */}
         <ExpenseAnalysis
+          userId={session?.id}
           movements={movements}
           onCategorySelect={setCategoryFilter}
         />

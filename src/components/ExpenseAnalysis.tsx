@@ -14,6 +14,7 @@ export interface CategoryFilter {
 }
 
 interface ExpenseAnalysisProps {
+  userId?: string;
   movements: BankMovement[];
   onCategorySelect?: (filter: CategoryFilter | null) => void;
 }
@@ -67,10 +68,10 @@ function formatMonthLabel(monthKey: string): string {
   return new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric" }).format(date);
 }
 
-export const ExpenseAnalysis: React.FC<ExpenseAnalysisProps> = ({ movements, onCategorySelect }) => {
+export const ExpenseAnalysis: React.FC<ExpenseAnalysisProps> = ({ userId, movements, onCategorySelect }) => {
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string | null>(null);
-  const { rules, addRules, ruleCount, customCategories, addCustomCategory, removeCustomCategory, customCategoryColors } = useUserCategoryRules();
+  const { rules, addRules, ruleCount, customCategories, addCustomCategory, removeCustomCategory, customCategoryColors } = useUserCategoryRules(userId);
   const categoryColors = getAllCategoryColors(customCategories, customCategoryColors);
 
   // ── Uncategorized review state ──────────────────────────────
