@@ -47,7 +47,7 @@ export const SavingsHistory: React.FC<SavingsHistoryProps> = ({
   };
 
   return (
-    <section className="mb-8 rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+    <section className="mb-8 rounded-3xl border border-slate-200/60 bg-white shadow-xl overflow-hidden">
       <div className="border-b border-slate-100 px-6 py-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
@@ -58,7 +58,7 @@ export const SavingsHistory: React.FC<SavingsHistoryProps> = ({
             Evolución mensual del saldo acumulado para comparar con la meta de {formatCentsToEuro(monthlyTargetCents)}/mes.
           </p>
         </div>
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 shadow-sm">
           <div className="flex items-center gap-2 font-semibold">
             <TrendingUp size={16} />
             Meta mensual: {formatCentsToEuro(monthlyTargetCents)}
@@ -140,7 +140,7 @@ export const SavingsHistory: React.FC<SavingsHistoryProps> = ({
             {history.map((point) => {
               const vsTarget = point.deltaCents - monthlyTargetCents;
               return (
-                <tr key={point.monthKey} className="hover:bg-slate-50/70 transition-colors">
+                <tr key={point.monthKey} className="hover:bg-indigo-50/30 transition-colors border-b border-slate-100/60">
                   <td className="px-6 py-4 text-sm font-semibold text-slate-800">{point.label}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">{formatCentsToEuro(point.startBalanceCents)}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">{formatCentsToEuro(point.endBalanceCents)}</td>

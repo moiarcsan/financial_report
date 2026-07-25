@@ -30,7 +30,7 @@ export const MovementSummary: React.FC<MovementSummaryProps> = ({
       {/* Global Net Balance */}
       <div 
         id="card-global" 
-        className="lg:col-span-2 h-full p-5 rounded-2xl bg-slate-900 text-white shadow-md border border-slate-800 flex flex-col justify-between"
+        className="lg:col-span-2 h-full p-5 rounded-3xl bg-slate-900 text-white shadow-2xl border border-slate-800 flex flex-col justify-between hover:shadow-2xl transition-all group relative overflow-hidden"
       >
         <div className="flex justify-between items-start mb-4">
             <div>
@@ -68,15 +68,15 @@ export const MovementSummary: React.FC<MovementSummaryProps> = ({
               (Object.entries(n26AccountTotals as Record<string, number>) as [string, number][])
                 .sort(([a], [b]) => a.localeCompare(b))
                 .map(([accountName, totalCents]) => (
-                  <div key={accountName} className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">{accountName}</span>
-                    <span className={`font-semibold ${totalCents >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                  <div key={accountName} className="flex items-center justify-between">
+                    <span className="text-sm text-slate-600 font-medium">{accountName}</span>
+                    <span className={`font-bold text-sm ${totalCents >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                       {formatCentsToEuro(totalCents)}
                     </span>
                   </div>
                 ))
             ) : (
-              <p className="text-sm text-slate-400">Sin cuentas N26 diferenciadas</p>
+              <p className="text-xs text-slate-400">Sin cuentas diferenciadas</p>
             )}
           </div>
         </div>
@@ -101,15 +101,15 @@ export const MovementSummary: React.FC<MovementSummaryProps> = ({
               (Object.entries(unicajaAccountTotals as Record<string, number>) as [string, number][])
                 .sort(([a], [b]) => a.localeCompare(b))
                 .map(([accountName, totalCents]) => (
-                  <div key={accountName} className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">{accountName}</span>
-                    <span className={`font-semibold ${totalCents >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                  <div key={accountName} className="flex items-center justify-between">
+                    <span className="text-sm text-slate-600 font-medium">{accountName}</span>
+                    <span className={`font-bold text-sm ${totalCents >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                       {formatCentsToEuro(totalCents)}
                     </span>
                   </div>
                 ))
             ) : (
-              <p className="text-sm text-slate-400">Sin cuentas Unicaja diferenciadas</p>
+              <p className="text-xs text-slate-400">Sin cuentas diferenciadas</p>
             )}
           </div>
         </div>

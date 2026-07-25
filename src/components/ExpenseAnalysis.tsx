@@ -245,7 +245,7 @@ export const ExpenseAnalysis: React.FC<ExpenseAnalysisProps> = ({ userId, moveme
   };
 
   return (
-    <section className="mb-8 rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+    <section className="mb-8 rounded-3xl border border-slate-200/60 bg-white shadow-xl overflow-hidden">
       <div className="border-b border-slate-100 px-6 py-5">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">

@@ -54,7 +54,7 @@ const CategoryEditableRow: React.FC<{
     <tr
       key={mov.id}
       id={`row-${mov.id}`}
-      className="hover:bg-slate-50/50 transition-colors duration-150"
+      className="hover:bg-slate-50/50 transition-colors duration-150 hover:shadow-sm"
     >
       {/* Fecha */}
       <td className="py-2 px-2 whitespace-nowrap text-slate-600 font-sans text-xs">
@@ -105,14 +105,14 @@ const CategoryEditableRow: React.FC<{
             </select>
             <button
               onClick={handleSave}
-              className="p-1 text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+              className="p-1 text-emerald-600 hover:bg-emerald-50 rounded transition-colors hover:scale-110"
               title="Guardar categoría"
             >
               <Check size={14} />
             </button>
             <button
               onClick={handleCancel}
-              className="p-1 text-rose-400 hover:bg-rose-50 rounded transition-colors"
+              className="p-1 text-rose-400 hover:bg-rose-50 rounded transition-colors hover:scale-110"
               title="Cancelar"
             >
               <X size={14} />
@@ -364,7 +364,7 @@ export const MovementTable: React.FC<MovementTableProps> = ({ userId, movements,
   };
 
   return (
-    <div id="movements-table-container" className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+    <div id="movements-table-container" className="bg-white rounded-3xl border border-slate-200/60 overflow-hidden shadow-xl">
       <div className="p-5 border-b border-slate-100 flex items-center justify-between">
         <h3 className="text-lg font-sans font-semibold text-slate-800">
           Listado de movimientos unificados

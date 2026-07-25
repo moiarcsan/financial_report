@@ -23,7 +23,7 @@ export const ImportSummary: React.FC<ImportSummaryProps> = ({ summary, onClose }
         <button
           id="btn-close-summary"
           onClick={onClose}
-          className="text-xs font-mono px-3 py-1 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg text-slate-500 cursor-pointer transition-all"
+          className="text-xs font-mono px-3 py-1 bg-white border border-slate-200/50 hover:bg-slate-100 hover:shadow-md rounded-lg text-slate-500 cursor-pointer transition-all"
         >
           Cerrar resumen
         </button>
@@ -37,10 +37,10 @@ export const ImportSummary: React.FC<ImportSummaryProps> = ({ summary, onClose }
             <div
               key={idx}
               id={`file-summary-${idx}`}
-              className={`p-4 rounded-xl border ${
+              className={`p-4 rounded-xl border shadow-sm ${
                 isSuccess 
-                  ? "bg-white border-slate-200/60" 
-                  : "bg-rose-50/40 border-rose-200/50"
+                  ? "bg-white border-slate-200/60 hover:shadow-md" 
+                  : "bg-rose-50/40 border-rose-200/50 hover:shadow-md"
               }`}
             >
               <div className="flex items-start justify-between mb-3">

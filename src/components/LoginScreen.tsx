@@ -58,7 +58,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         </div>
 
         {/* Login Form */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+        <div className="bg-white rounded-3xl border border-slate-200/60 shadow-2xl p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* User Selector */}
             <div>
@@ -72,7 +72,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     setSelectedUserId(e.target.value);
                     setError("");
                   }}
-                  className="w-full px-3 py-2.5 text-sm font-sans border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white appearance-none"
+                  className="w-full px-3 py-3 text-sm font-sans border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-0 focus:border-indigo-500 bg-slate-50/50 hover:border-slate-300 transition-all appearance-none"
                   required
                 >
                   <option value="">Selecciona un usuario</option>
@@ -98,18 +98,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     setPassword(e.target.value);
                     setError("");
                   }}
-                  placeholder="Introduce tu contraseña"
-                  className="w-full px-3 pr-10 py-2.5 text-sm font-sans border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                  className="w-full px-3 pr-12 py-3 text-sm font-sans border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-0 focus:border-indigo-500 bg-slate-50/50 hover:border-slate-300 transition-all"
                   autoComplete="current-password"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors px-2"
                   title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                 >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
@@ -125,7 +124,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-2.5 text-sm font-sans font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 text-base font-sans font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:scale-105"
             >
               {isLoading ? "Entrando..." : "Entrar"}
             </button>

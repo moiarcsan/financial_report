@@ -101,7 +101,7 @@ export const IncomeVsExpensesChart: React.FC<IncomeVsExpensesChartProps> = ({ us
   const expensePercent = totalCents > 0 ? (expenseCents / totalCents) * 100 : 0;
 
   return (
-    <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm mb-6 sm:mb-8">
+    <div className="bg-white rounded-3xl border border-slate-200/60 p-8 shadow-xl mb-10">
       <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2 flex-col sm:flex-row">
         <h3 className="text-base sm:text-lg font-sans font-semibold text-slate-800">
           Ingresos vs Gastos
@@ -147,9 +147,9 @@ export const IncomeVsExpensesChart: React.FC<IncomeVsExpensesChartProps> = ({ us
                 {formatCentsToEuro(incomeCents)}
               </span>
             </div>
-            <div className="w-full bg-slate-100 rounded-full h-8 overflow-hidden">
+            <div className="w-full bg-gradient-to-r from-slate-100 to-slate-200 rounded-full h-10 overflow-hidden shadow-inner">
               <div
-                className="bg-emerald-500 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-3"
+                className="bg-emerald-500 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-3 shadow-lg"
                 style={{ width: `${incomeWidth}%` }}
               >
                 {incomeCents > 0 && (
@@ -175,9 +175,9 @@ export const IncomeVsExpensesChart: React.FC<IncomeVsExpensesChartProps> = ({ us
                 {formatCentsToEuro(expenseCents)}
               </span>
             </div>
-            <div className="w-full bg-slate-100 rounded-full h-8 overflow-hidden">
+            <div className="w-full bg-gradient-to-r from-slate-100 to-slate-200 rounded-full h-10 overflow-hidden shadow-inner">
               <div
-                className="bg-rose-500 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-3"
+                className="bg-rose-500 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-3 shadow-lg"
                 style={{ width: `${expenseWidth}%` }}
               >
                 {expenseCents > 0 && (

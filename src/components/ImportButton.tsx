@@ -151,7 +151,7 @@ export const ImportButton: React.FC<ImportButtonProps> = ({
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                   onClick={triggerFileInput}
-                  className={`flex flex-col items-center justify-center border-2 border-dashed rounded-2xl p-8 cursor-pointer transition-all ${
+                  className={`flex flex-col items-center justify-center border-2 border-dashed rounded-3xl p-8 cursor-pointer transition-all shadow-sm ${
                     isDragging
                       ? "border-indigo-500 bg-indigo-50/50"
                       : "border-slate-300 hover:border-slate-400 bg-slate-50/50 hover:bg-slate-50"

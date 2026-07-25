@@ -344,7 +344,7 @@ export default function App() {
       </header>
 
       {/* Main Body */}
-      <main id="app-main-content" className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+      <main id="app-main-content" className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-12">
         
         {/* Real-time Financial Summary Cards */}
         <MovementSummary
