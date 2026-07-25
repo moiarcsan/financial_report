@@ -389,8 +389,8 @@ export const MovementTable: React.FC<MovementTableProps> = ({ userId, movements,
         </div>
       </div>
 
-      {/* Filter Row */}
-      <div className="p-4 border-b border-slate-100 bg-slate-50/50 grid grid-cols-1 md:grid-cols-8 gap-3">
+      {/* Filter Row - Responsive */}
+      <div className="p-3 sm:p-4 border-b border-slate-100 bg-slate-50/50 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-2 sm:gap-3">
         {/* Date Range - From */}
         <div className="relative">
           <input
@@ -506,7 +506,9 @@ export const MovementTable: React.FC<MovementTableProps> = ({ userId, movements,
         </div>
       ) : (
         <>
-          <table className="w-full text-left border-collapse table-auto">
+          {/* Desktop Table View - Hidden on mobile */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-left border-collapse table-auto">
             <thead>
               <tr className="bg-slate-50/75 text-slate-500 font-sans text-[11px] uppercase tracking-wider border-b border-slate-100">
                 <th className="py-2 px-2 font-semibold cursor-pointer select-none" onClick={() => handleSort("operationDate")}>
@@ -579,6 +581,39 @@ export const MovementTable: React.FC<MovementTableProps> = ({ userId, movements,
               </tr>
             </tfoot>
           </table>
+          </div>
+
+          {/* Mobile Card View - Shown only on mobile */}
+          <div className="md:hidden space-y-3 p-3 sm:p-4">
+            {paginatedMovements.map((mov) => (
+              <div key={mov.id} className="bg-slate-50 rounded-lg border border-slate-200 p-3 sm:p-4 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-slate-500 font-mono">{formatDateToSpanish(mov.operationDate)}</p>
+                    <p className="text-sm font-medium text-slate-900 truncate" title={mov.concept}>{mov.concept}</p>
+                  </div>
+                  <span className={`text-sm font-bold whitespace-nowrap ${Math.round(mov.amount * 100) >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                    {formatCentsToEuro(Math.round(mov.amount * 100))}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className={`inline-flex items-center px-2 py-1 rounded-md border font-semibold ${getBankBadgeClass(mov.bank)}`}>
+                    {mov.bank}
+                  </span>
+                  <span className="text-slate-600">{mov.account}</span>
+                </div>
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="text-slate-500">Categoría:</span>
+                  <span className="font-medium px-2 py-1 rounded-lg" style={{
+                    backgroundColor: categoryColors[categorizeConcept(mov.concept, rules)] || "#f1f5f9",
+                    color: categoryColors[categorizeConcept(mov.concept, rules)] ? "#ffffff" : "#475569",
+                  }}>
+                    {categorizeConcept(mov.concept, rules)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
 
           {/* Pagination Controls */}
           <div className="border-t-2 border-slate-200 bg-slate-50/50 px-5 py-3 flex items-center justify-between">

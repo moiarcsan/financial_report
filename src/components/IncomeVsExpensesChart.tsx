@@ -101,19 +101,19 @@ export const IncomeVsExpensesChart: React.FC<IncomeVsExpensesChartProps> = ({ us
   const expensePercent = totalCents > 0 ? (expenseCents / totalCents) * 100 : 0;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm mb-8">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-sans font-semibold text-slate-800">
+    <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm mb-6 sm:mb-8">
+      <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2 flex-col sm:flex-row">
+        <h3 className="text-base sm:text-lg font-sans font-semibold text-slate-800">
           Ingresos vs Gastos
         </h3>
         
         {/* Month Selector */}
-        <div className="flex items-center gap-2">
-          <Calendar size={14} className="text-slate-400" />
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Calendar size={14} className="text-slate-400 shrink-0" />
           <select
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
-            className="text-sm font-sans text-slate-700 border border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white cursor-pointer"
+            className="text-xs sm:text-sm font-sans text-slate-700 border border-slate-300 rounded-lg px-2 sm:px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white cursor-pointer flex-1 sm:flex-none"
             aria-label="Seleccionar mes"
           >
             {availableMonths.map((month) => (

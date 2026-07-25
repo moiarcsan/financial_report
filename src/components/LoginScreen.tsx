@@ -26,13 +26,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       return;
     }
 
-    const profile = await login(selectedUserId, password);
-    if (profile) {
-      onLoginSuccess(profile);
-    } else {
-      setError("Contraseña incorrecta. Inténtalo de nuevo.");
+    try {
+      const profile = await login(selectedUserId, password);
+      if (profile) {
+        setIsLoading(false);
+        onLoginSuccess(profile);
+      } else {
+        setError("Contraseña incorrecta. Inténtalo de nuevo.");
+        setIsLoading(false);
+      }
+    } catch (err) {
+      setError("Error durante el login. Inténtalo de nuevo.");
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   return (
@@ -93,14 +99,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     setError("");
                   }}
                   placeholder="Introduce tu contraseña"
-                  className="w-full px-3 pr-12 py-2.5 text-sm font-sans border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                  className="w-full px-3 pr-10 py-2.5 text-sm font-sans border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
                   autoComplete="current-password"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
                   title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}

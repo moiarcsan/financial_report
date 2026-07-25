@@ -294,48 +294,49 @@ export default function App() {
     <div id="app-root-container" className="min-h-screen bg-slate-50/50 text-slate-800 flex flex-col">
       {/* Top Navigation / Header */}
       <header id="app-header" className="bg-white border-b border-slate-200 shrink-0 sticky top-0 z-10 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
-              <Wallet size={20} />
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="p-1.5 sm:p-2 bg-indigo-50 text-indigo-600 rounded-lg sm:rounded-xl shrink-0">
+              <Wallet size={18} className="sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <h1 id="main-title" className="text-base font-sans font-bold text-slate-900 tracking-tight">
-                Control financiero del hogar
+            <div className="min-w-0">
+              <h1 id="main-title" className="text-xs sm:text-base font-sans font-bold text-slate-900 tracking-tight truncate">
+                Control financiero
               </h1>
-              <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">
+              <p className="text-[8px] sm:text-[10px] font-mono text-slate-400 uppercase tracking-wider hidden sm:block">
                 Unificador de extractos bancarios
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="hidden sm:flex items-center gap-2 text-xs font-semibold text-slate-500 font-mono">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <div className="hidden lg:flex items-center gap-2 text-xs font-semibold text-slate-500 font-mono">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
               <span>Conectado a Supabase</span>
             </div>
             {syncError && (
-              <div className="text-xs text-rose-600 font-medium">
+              <div className="text-xs text-rose-600 font-medium hidden sm:block">
                 Error: {syncError}
               </div>
             )}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <button
                 id="btn-open-sidebar"
                 onClick={() => setIsSidebarOpen(true)}
-                className="inline-flex items-center gap-2 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-semibold transition-all cursor-pointer"
+                className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer"
                 title="Abrir menú de administración"
               >
-                <Menu size={18} />
-                <span>Importar / Ajustes</span>
+                <Menu size={16} className="sm:w-4.5 sm:h-4.5" />
+                <span className="hidden sm:inline">Importar / Ajustes</span>
+                <span className="inline sm:hidden">Importar</span>
               </button>
               <button
                 id="btn-logout"
                 onClick={handleLogout}
-                className="inline-flex items-center gap-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-sm font-semibold transition-all cursor-pointer"
+                className="inline-flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer"
                 title="Cerrar sesión"
               >
-                <LogOut size={16} />
-                <span>Cerrar sesión</span>
+                <LogOut size={16} className="sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Cerrar sesión</span>
               </button>
             </div>
           </div>
@@ -343,7 +344,7 @@ export default function App() {
       </header>
 
       {/* Main Body */}
-      <main id="app-main-content" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main id="app-main-content" className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         
         {/* Real-time Financial Summary Cards */}
         <MovementSummary
