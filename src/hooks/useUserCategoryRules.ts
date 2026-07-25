@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { supabase } from "../services/supabaseClient";
 import { CATEGORY_ORDER, CATEGORY_COLORS } from "../utils/categoryUtils";
 import type { ExpenseCategory } from "../utils/categoryUtils";
 
@@ -9,8 +10,9 @@ const CUSTOM_CATEGORY_COLORS_KEY = "user_custom_category_colors";
 // Pastel palette for auto-assigning colors to custom categories
 const COLOR_PALETTE = [
   "#86efac", "#fed7aa", "#93c5fd", "#c4b5fd", "#f0abfc",
-  "#fda4af", "#fca5a5", "#5eead4", "#fdba74", "#d8b4fe",
+  "#fda4af", "#fca5a5", "#5eead4", "#f0abfc", "#d8b4fe",
   "#67e8f9", "#fde047", "#bef264", "#f9a8d4", "#99f6e4",
+  "#86efac", "#fed7aa", "#93c5fd", "#c4b5fd", "#f0abfc",
 ];
 
 // ── Custom categories persistence ──────────────────────────────
@@ -104,31 +106,111 @@ function saveRules(rules: Map<string, string>): void {
   }
 }
 
+// ── Supabase sync functions ───────────────────────────────────
+
 /**
- * Hook that manages user-defined keyword→category rules in localStorage,
- * plus user-created custom categories.
- *
- * Rules are automatically loaded on mount and saved on every change.
+ * Fetches category rules from Supabase for a given user.
  */
-export function useUserCategoryRules() {
+async function fetchRulesFromSupabase(userId: string): Promise<Map<string, string>> {
+  const { data, error } = await supabase
+    .from("category_rules")
+    .select("keyword, category")
+    .eq("user_id", userId);
+
+  if (error) {
+    console.warn("No se pudieron cargar las reglas desde Supabase:", error.message);
+    return new Map();
+  }
+
+  const rulesMap = new Map<string, string>();
+  if (data) {
+    for (const row of data) {
+      rulesMap.set(row.keyword, row.category);
+    }
+  }
+  return rulesMap;
+}
+
+/**
+ * Syncs local rules to Supabase (upserts all rules).
+ */
+async function syncRulesToSupabase(userId: string, rules: Map<string, string>): Promise<void> {
+  if (!userId) return;
+
+  const rulesArray = Array.from(rules.entries()).map(([keyword, category]) => ({
+    user_id: userId,
+    keyword,
+    category,
+  }));
+
+  const { error } = await supabase.from("category_rules").upsert(rulesArray, {
+    onConflict: "user_id,keyword",
+  });
+
+  if (error) {
+    console.warn("Error al sincronizar reglas con Supabase:", error.message);
+  }
+}
+
+/**
+ * Hook that manages user-defined keyword→category rules,
+ * with optional Supabase sync for cross-device synchronization.
+ *
+ * Rules are automatically loaded from localStorage and Supabase,
+ * and saved to both when changed.
+ */
+export function useUserCategoryRules(userId?: string) {
   const [rules, setRules] = useState<Map<string, string>>(loadRules);
   const [customCategories, setCustomCategories] = useState<string[]>(loadCustomCategories);
   const [customCategoryColors, setCustomCategoryColors] = useState<Record<string, string>>(loadCustomCategoryColors);
+  const isMountedRef = useRef(false);
 
-  // Persist whenever rules change
+  // Persist whenever rules change (localStorage)
   useEffect(() => {
-    saveRules(rules);
+    if (isMountedRef.current) {
+      saveRules(rules);
+    }
   }, [rules]);
 
-  // Persist whenever custom categories change
+  // Persist whenever custom categories change (localStorage)
   useEffect(() => {
-    saveCustomCategories(customCategories);
+    if (isMountedRef.current) {
+      saveCustomCategories(customCategories);
+    }
   }, [customCategories]);
 
-  // Persist whenever custom category colors change
+  // Persist whenever custom category colors change (localStorage)
   useEffect(() => {
-    saveCustomCategoryColors(customCategoryColors);
+    if (isMountedRef.current) {
+      saveCustomCategoryColors(customCategoryColors);
+    }
   }, [customCategoryColors]);
+
+  // ── Sync with Supabase on mount (if userId provided) ────────
+  useEffect(() => {
+    if (!userId) return;
+
+    const syncWithSupabase = async () => {
+      const supabaseRules = await fetchRulesFromSupabase(userId);
+
+      // If Supabase has rules and local is empty, use Supabase
+      if (supabaseRules.size > 0 && rules.size === 0) {
+        setRules(supabaseRules);
+      } else if (supabaseRules.size > 0 && rules.size > 0) {
+        // Merge: prefer Supabase rules but add any local-only rules
+        const merged = new Map(supabaseRules);
+        rules.forEach((category, keyword) => {
+          if (!merged.has(keyword)) {
+            merged.set(keyword, category);
+          }
+        });
+        setRules(merged);
+      }
+    };
+
+    syncWithSupabase();
+    isMountedRef.current = true;
+  }, [userId]);
 
   // ── Rule operations ────────────────────────────────────────────
 
@@ -141,7 +223,13 @@ export function useUserCategoryRules() {
       next.set(keyword.trim(), category);
       return next;
     });
-  }, []);
+
+    // Sync to Supabase if userId is available
+    if (userId) {
+      const currentRules = rules;
+      syncRulesToSupabase(userId, currentRules);
+    }
+  }, [userId, rules]);
 
   /**
    * Adds multiple keyword→category rules at once (batch import).
@@ -155,8 +243,14 @@ export function useUserCategoryRules() {
         }
         return next;
       });
+
+      // Sync to Supabase if userId is available
+      if (userId) {
+        const currentRules = rules;
+        syncRulesToSupabase(userId, currentRules);
+      }
     },
-    []
+    [userId, rules]
   );
 
   /**
@@ -168,14 +262,25 @@ export function useUserCategoryRules() {
       next.delete(keyword);
       return next;
     });
-  }, []);
+
+    // Sync to Supabase if userId is available
+    if (userId) {
+      const currentRules = rules;
+      syncRulesToSupabase(userId, currentRules);
+    }
+  }, [userId, rules]);
 
   /**
    * Clears all user-defined rules.
    */
   const clearRules = useCallback(() => {
     setRules(new Map());
-  }, []);
+
+    // Sync to Supabase if userId is available
+    if (userId) {
+      syncRulesToSupabase(userId, new Map());
+    }
+  }, [userId]);
 
   /**
    * Returns the number of rules stored.
