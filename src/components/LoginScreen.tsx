@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { login, getAvailableProfiles, type UserProfile } from "../services/authService";
-import { Lock, User, Eye, EyeOff, Wallet } from "lucide-react";
+import { Eye, EyeOff, Wallet } from "lucide-react";
 
 interface LoginScreenProps {
   onLoginSuccess: (profile: UserProfile) => void;
@@ -66,7 +66,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     setSelectedUserId(e.target.value);
                     setError("");
                   }}
-                  className="w-full pl-10 pr-3 py-2.5 text-sm font-sans border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white appearance-none"
+                  className="w-full px-3 py-2.5 text-sm font-sans border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white appearance-none"
                   required
                 >
                   <option value="">Selecciona un usuario</option>
@@ -76,7 +76,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     </option>
                   ))}
                 </select>
-                <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               </div>
             </div>
 
@@ -94,11 +93,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     setError("");
                   }}
                   placeholder="Introduce tu contraseña"
-                  className="w-full pl-10 pr-12 py-2.5 text-sm font-sans border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                  className="w-full px-3 pr-12 py-2.5 text-sm font-sans border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
                   autoComplete="current-password"
                   required
                 />
-                <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
