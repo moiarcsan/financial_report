@@ -58,21 +58,49 @@ alter table movements enable row level security;
 alter table category_rules enable row level security;
 alter table custom_categories enable row level security;
 
--- RLS Policies: Users can only access their own data
-create policy if not exists "movements_policy"
+-- ============================================================================
+-- IMPORTANT: Drop old policies if they exist to avoid conflicts
+-- ============================================================================
+DO $$
+BEGIN
+    -- Drop old restrictive policies if they exist
+    DROP POLICY IF EXISTS "movements_policy" ON movements;
+    DROP POLICY IF EXISTS "movements_read_all" ON movements;
+    DROP POLICY IF EXISTS "movements_write_own" ON movements;
+    DROP POLICY IF EXISTS "movements_delete_own" ON movements;
+    
+    DROP POLICY IF EXISTS "category_rules_policy" ON category_rules;
+    DROP POLICY IF EXISTS "category_rules_read_all" ON category_rules;
+    DROP POLICY IF EXISTS "category_rules_write_own" ON category_rules;
+    DROP POLICY IF EXISTS "category_rules_update_own" ON category_rules;
+    DROP POLICY IF EXISTS "category_rules_delete_own" ON category_rules;
+    
+    DROP POLICY IF EXISTS "custom_categories_policy" ON custom_categories;
+    DROP POLICY IF EXISTS "custom_categories_read_all" ON custom_categories;
+    DROP POLICY IF EXISTS "custom_categories_write_own" ON custom_categories;
+    DROP POLICY IF EXISTS "custom_categories_delete_own" ON custom_categories;
+END $$;
+
+-- RLS Policies: Open access - all users can do anything
+-- (All operations are allowed for all authenticated users)
+
+-- Movements: All operations allowed for all users
+create policy if not exists "movements_full_access"
     on movements for all
-    using (auth.uid()::text = user_id)
-    with check (auth.uid()::text = user_id);
+    using (true)
+    with check (true);
 
-create policy if not exists "category_rules_policy"
+-- Category rules: All operations allowed for all users
+create policy if not exists "category_rules_full_access"
     on category_rules for all
-    using (auth.uid()::text = user_id)
-    with check (auth.uid()::text = user_id);
+    using (true)
+    with check (true);
 
-create policy if not exists "custom_categories_policy"
+-- Custom categories: All operations allowed for all users
+create policy if not exists "custom_categories_full_access"
     on custom_categories for all
-    using (auth.uid()::text = user_id)
-    with check (auth.uid()::text = user_id);
+    using (true)
+    with check (true);
 
 -- Note: For this app, we're using a simple user_id string from our custom auth
 -- If you want to use Supabase Auth instead, you would need to:

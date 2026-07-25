@@ -160,7 +160,7 @@ export const ExpenseAnalysis: React.FC<ExpenseAnalysisProps> = ({ userId, moveme
     }
     const added = addCustomCategory(name);
     if (!added) {
-      setNewCategoryError("Esa categoría ya existe.");
+      setNewCategoryError(userId ? "Esa categoría ya existe." : "Debes iniciar sesión para crear categorías.");
       return;
     }
     setBatchCategory(name);
@@ -236,7 +236,7 @@ export const ExpenseAnalysis: React.FC<ExpenseAnalysisProps> = ({ userId, moveme
     }
     const added = addCustomCategory(name);
     if (!added) {
-      setCreateCategoryError("Esa categoría ya existe.");
+      setCreateCategoryError(userId ? "Esa categoría ya existe." : "Debes iniciar sesión para crear categorías.");
       return;
     }
     setCreateCategoryName("");

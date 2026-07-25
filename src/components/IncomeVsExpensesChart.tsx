@@ -6,6 +6,7 @@ import { formatCentsToEuro } from "../utils/moneyUtils";
 import { TrendingUp, TrendingDown, Calendar } from "lucide-react";
 
 interface IncomeVsExpensesChartProps {
+  userId?: string;
   movements: BankMovement[];
 }
 
@@ -37,9 +38,9 @@ interface MonthlyData {
   expenseCount: number;
 }
 
-export const IncomeVsExpensesChart: React.FC<IncomeVsExpensesChartProps> = ({ movements }) => {
+export const IncomeVsExpensesChart: React.FC<IncomeVsExpensesChartProps> = ({ userId, movements }) => {
   const [selectedMonth, setSelectedMonth] = useState<string>(getCurrentMonth());
-  const { rules } = useUserCategoryRules();
+  const { rules } = useUserCategoryRules(userId);
 
   // Get all available months from movements
   const availableMonths = useMemo(() => {

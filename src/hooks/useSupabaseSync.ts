@@ -59,11 +59,10 @@ export function useSupabaseSync(userId: string | null) {
     setError(null);
 
     try {
-      // Load movements
+      // Load movements (all users' movements are visible to everyone)
       const { data: movementsData, error: movementsError } = await supabase
         .from("movements")
         .select("*")
-        .eq("user_id", userId)
         .order("operation_date", { ascending: false });
 
       if (movementsError) {
@@ -93,11 +92,10 @@ export function useSupabaseSync(userId: string | null) {
 
       setMovements(transformedMovements);
 
-      // Load category rules
+      // Load category rules (all users' rules are visible to everyone)
       const { data: rulesData, error: rulesError } = await supabase
         .from("category_rules")
-        .select("*")
-        .eq("user_id", userId);
+        .select("*");
 
       if (rulesError) {
         if (rulesError.message?.includes("relation") || rulesError.code === "42P01") {
@@ -114,11 +112,10 @@ export function useSupabaseSync(userId: string | null) {
       });
       setCategoryRules(rulesMap);
 
-      // Load custom categories
+      // Load custom categories (all users' categories are visible to everyone)
       const { data: categoriesData, error: categoriesError } = await supabase
         .from("custom_categories")
-        .select("*")
-        .eq("user_id", userId);
+        .select("*");
 
       if (categoriesError) {
         if (categoriesError.message?.includes("relation") || categoriesError.code === "42P01") {

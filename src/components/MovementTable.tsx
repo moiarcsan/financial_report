@@ -8,6 +8,7 @@ import { type CategoryFilter } from "./ExpenseAnalysis";
 import { Calendar, Tag, CreditCard, Search, X, Filter, Check, Edit3 } from "lucide-react";
 
 interface MovementTableProps {
+  userId?: string;
   movements: BankMovement[];
   categoryFilter?: CategoryFilter | null;
   onClearCategoryFilter?: () => void;
@@ -175,8 +176,8 @@ interface Filters {
 type SortKey = "operationDate" | "valueDate" | "bank" | "account" | "concept" | "category" | "amount";
 type SortDirection = "asc" | "desc";
 
-export const MovementTable: React.FC<MovementTableProps> = ({ movements, categoryFilter, onClearCategoryFilter }) => {
-  const { rules, addRule, customCategories, customCategoryColors } = useUserCategoryRules();
+export const MovementTable: React.FC<MovementTableProps> = ({ userId, movements, categoryFilter, onClearCategoryFilter }) => {
+  const { rules, addRule, customCategories, customCategoryColors } = useUserCategoryRules(userId);
   const categoryColors = getAllCategoryColors(customCategories, customCategoryColors);
   const [filters, setFilters] = useState<Filters>({
     dateFrom: "",

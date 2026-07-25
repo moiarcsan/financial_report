@@ -382,7 +382,7 @@ export default function App() {
         />
 
         {/* Income vs Expenses Chart */}
-        <IncomeVsExpensesChart movements={movements} />
+        <IncomeVsExpensesChart userId={session?.id} movements={movements} />
 
         {/* Expense Analysis Section */}
         <ExpenseAnalysis
@@ -393,6 +393,7 @@ export default function App() {
 
         {/* Master Transactions List Table */}
         <MovementTable
+          userId={session?.id}
           movements={movements}
           categoryFilter={categoryFilter}
           onClearCategoryFilter={() => setCategoryFilter(null)}

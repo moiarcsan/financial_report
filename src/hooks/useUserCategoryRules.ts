@@ -4,8 +4,6 @@ import { CATEGORY_ORDER, CATEGORY_COLORS } from "../utils/categoryUtils";
 import type { ExpenseCategory } from "../utils/categoryUtils";
 
 const STORAGE_KEY = "user_category_rules";
-const CUSTOM_CATEGORIES_KEY = "user_custom_categories";
-const CUSTOM_CATEGORY_COLORS_KEY = "user_custom_category_colors";
 
 // Pastel palette for auto-assigning colors to custom categories
 const COLOR_PALETTE = [
@@ -14,53 +12,6 @@ const COLOR_PALETTE = [
   "#67e8f9", "#fde047", "#bef264", "#f9a8d4", "#99f6e4",
   "#86efac", "#fed7aa", "#93c5fd", "#c4b5fd", "#f0abfc",
 ];
-
-// ── Custom categories persistence ──────────────────────────────
-
-/**
- * Loads user-created custom categories from localStorage.
- */
-function loadCustomCategories(): string[] {
-  try {
-    const stored = localStorage.getItem(CUSTOM_CATEGORIES_KEY);
-    if (!stored) return [];
-    const parsed = JSON.parse(stored) as string[];
-    return parsed;
-  } catch {
-    return [];
-  }
-}
-
-/**
- * Saves user-created custom categories to localStorage.
- */
-function saveCustomCategories(categories: string[]): void {
-  try {
-    localStorage.setItem(CUSTOM_CATEGORIES_KEY, JSON.stringify(categories));
-  } catch {
-    console.warn("No se pudieron guardar las categorías personalizadas.");
-  }
-}
-
-// ── Custom category colors persistence ─────────────────────────
-
-function loadCustomCategoryColors(): Record<string, string> {
-  try {
-    const stored = localStorage.getItem(CUSTOM_CATEGORY_COLORS_KEY);
-    if (!stored) return {};
-    return JSON.parse(stored) as Record<string, string>;
-  } catch {
-    return {};
-  }
-}
-
-function saveCustomCategoryColors(colors: Record<string, string>): void {
-  try {
-    localStorage.setItem(CUSTOM_CATEGORY_COLORS_KEY, JSON.stringify(colors));
-  } catch {
-    console.warn("No se pudieron guardar los colores de categorías personalizadas.");
-  }
-}
 
 /**
  * Generates a deterministic color from a string using a simple hash.
@@ -109,13 +60,12 @@ function saveRules(rules: Map<string, string>): void {
 // ── Supabase sync functions ───────────────────────────────────
 
 /**
- * Fetches category rules from Supabase for a given user.
+ * Fetches category rules from Supabase for all users.
  */
 async function fetchRulesFromSupabase(userId: string): Promise<Map<string, string>> {
   const { data, error } = await supabase
     .from("category_rules")
-    .select("keyword, category")
-    .eq("user_id", userId);
+    .select("keyword, category");
 
   if (error) {
     console.warn("No se pudieron cargar las reglas desde Supabase:", error.message);
@@ -148,22 +98,106 @@ async function syncRulesToSupabase(userId: string, rules: Map<string, string>): 
   });
 
   if (error) {
-    console.warn("Error al sincronizar reglas con Supabase:", error.message);
+    console.error("Error al sincronizar reglas con Supabase:", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
   }
+}
+
+/**
+ * Fetches custom categories from Supabase for all users.
+ */
+async function fetchCustomCategoriesFromSupabase(userId: string): Promise<{ categories: string[]; colors: Record<string, string> }> {
+  const { data, error } = await supabase
+    .from("custom_categories")
+    .select("name, color");
+
+  if (error) {
+    console.warn("No se pudieron cargar las categorías personalizadas desde Supabase:", error.message);
+    return { categories: [], colors: {} };
+  }
+
+  const categories: string[] = [];
+  const colors: Record<string, string> = {};
+  if (data) {
+    for (const row of data) {
+      categories.push(row.name);
+      colors[row.name] = row.color;
+    }
+  }
+  return { categories, colors };
+}
+
+/**
+ * Adds a custom category to Supabase.
+ */
+async function addCustomCategoryToSupabase(userId: string, name: string, color: string): Promise<boolean> {
+  if (!userId) {
+    console.error("Cannot add custom category: userId is required");
+    return false;
+  }
+
+  const { error } = await supabase.from("custom_categories").insert({
+    user_id: userId,
+    name: name.trim(),
+    color,
+  });
+
+  if (error) {
+    console.error("Error al guardar categoría personalizada en Supabase:", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Removes a custom category from Supabase.
+ */
+async function removeCustomCategoryFromSupabase(userId: string, name: string): Promise<boolean> {
+  if (!userId) {
+    console.error("Cannot remove custom category: userId is required");
+    return false;
+  }
+
+  const { error } = await supabase
+    .from("custom_categories")
+    .delete()
+    .eq("user_id", userId)
+    .eq("name", name);
+
+  if (error) {
+    console.error("Error al borrar categoría personalizada de Supabase:", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
+    return false;
+  }
+  return true;
 }
 
 /**
  * Hook that manages user-defined keyword→category rules,
  * with optional Supabase sync for cross-device synchronization.
  *
- * Rules are automatically loaded from localStorage and Supabase,
- * and saved to both when changed.
+ * - Rules are loaded from localStorage and synced to Supabase
+ * - Custom categories are loaded from Supabase and stored there (require userId)
  */
 export function useUserCategoryRules(userId?: string) {
   const [rules, setRules] = useState<Map<string, string>>(loadRules);
-  const [customCategories, setCustomCategories] = useState<string[]>(loadCustomCategories);
-  const [customCategoryColors, setCustomCategoryColors] = useState<Record<string, string>>(loadCustomCategoryColors);
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [customCategoryColors, setCustomCategoryColors] = useState<Record<string, string>>({});
   const isMountedRef = useRef(false);
+  const isSyncingRef = useRef(false);
 
   // Persist whenever rules change (localStorage)
   useEffect(() => {
@@ -172,28 +206,15 @@ export function useUserCategoryRules(userId?: string) {
     }
   }, [rules]);
 
-  // Persist whenever custom categories change (localStorage)
-  useEffect(() => {
-    if (isMountedRef.current) {
-      saveCustomCategories(customCategories);
-    }
-  }, [customCategories]);
-
-  // Persist whenever custom category colors change (localStorage)
-  useEffect(() => {
-    if (isMountedRef.current) {
-      saveCustomCategoryColors(customCategoryColors);
-    }
-  }, [customCategoryColors]);
-
   // ── Sync with Supabase on mount (if userId provided) ────────
   useEffect(() => {
     if (!userId) return;
 
     const syncWithSupabase = async () => {
       const supabaseRules = await fetchRulesFromSupabase(userId);
+      const { categories: supabaseCategories, colors: supabaseColors } = await fetchCustomCategoriesFromSupabase(userId);
 
-      // If Supabase has rules and local is empty, use Supabase
+      // Load rules from Supabase if local is empty
       if (supabaseRules.size > 0 && rules.size === 0) {
         setRules(supabaseRules);
       } else if (supabaseRules.size > 0 && rules.size > 0) {
@@ -206,11 +227,28 @@ export function useUserCategoryRules(userId?: string) {
         });
         setRules(merged);
       }
+
+      // Load custom categories from Supabase (they are stored only in Supabase, not local)
+      setCustomCategories(supabaseCategories);
+      setCustomCategoryColors(supabaseColors);
     };
 
     syncWithSupabase();
     isMountedRef.current = true;
   }, [userId]);
+
+  // ── Sync to Supabase when rules change (if userId provided) ──
+  useEffect(() => {
+    if (!userId || isSyncingRef.current || !isMountedRef.current) return;
+    
+    // Only sync if we have rules to sync
+    if (rules.size === 0) return;
+    
+    isSyncingRef.current = true;
+    syncRulesToSupabase(userId, rules).finally(() => {
+      isSyncingRef.current = false;
+    });
+  }, [rules, userId]);
 
   // ── Rule operations ────────────────────────────────────────────
 
@@ -223,13 +261,7 @@ export function useUserCategoryRules(userId?: string) {
       next.set(keyword.trim(), category);
       return next;
     });
-
-    // Sync to Supabase if userId is available
-    if (userId) {
-      const currentRules = rules;
-      syncRulesToSupabase(userId, currentRules);
-    }
-  }, [userId, rules]);
+  }, []);
 
   /**
    * Adds multiple keyword→category rules at once (batch import).
@@ -243,14 +275,8 @@ export function useUserCategoryRules(userId?: string) {
         }
         return next;
       });
-
-      // Sync to Supabase if userId is available
-      if (userId) {
-        const currentRules = rules;
-        syncRulesToSupabase(userId, currentRules);
-      }
     },
-    [userId, rules]
+    []
   );
 
   /**
@@ -262,25 +288,14 @@ export function useUserCategoryRules(userId?: string) {
       next.delete(keyword);
       return next;
     });
-
-    // Sync to Supabase if userId is available
-    if (userId) {
-      const currentRules = rules;
-      syncRulesToSupabase(userId, currentRules);
-    }
-  }, [userId, rules]);
+  }, []);
 
   /**
    * Clears all user-defined rules.
    */
   const clearRules = useCallback(() => {
     setRules(new Map());
-
-    // Sync to Supabase if userId is available
-    if (userId) {
-      syncRulesToSupabase(userId, new Map());
-    }
-  }, [userId]);
+  }, []);
 
   /**
    * Returns the number of rules stored.
@@ -290,9 +305,15 @@ export function useUserCategoryRules(userId?: string) {
   // ── Custom category operations ────────────────────────────────
 
   /**
-   * Adds a new custom category. Returns false if it already exists.
+   * Adds a new custom category. Returns false if it already exists or userId is not provided.
+   * Custom categories are stored only in Supabase (require userId).
    */
   const addCustomCategory = useCallback((name: string): boolean => {
+    if (!userId) {
+      console.warn("Cannot add custom category without userId");
+      return false;
+    }
+
     const trimmed = name.trim();
     if (!trimmed) return false;
 
@@ -302,19 +323,32 @@ export function useUserCategoryRules(userId?: string) {
       return false;
     }
 
+    const color = stringToColor(trimmed);
     setCustomCategories((prev) => [...prev, trimmed]);
     // Auto-assign a color based on the category name
     setCustomCategoryColors((prev) => ({
       ...prev,
-      [trimmed]: stringToColor(trimmed),
+      [trimmed]: color,
     }));
+
+    // Sync to Supabase
+    addCustomCategoryToSupabase(userId, trimmed, color).catch((err) => {
+      console.error("Error syncing custom category to Supabase:", err);
+    });
+
     return true;
-  }, [customCategories]);
+  }, [customCategories, userId]);
 
   /**
-   * Removes a custom category by name.
+   * Removes a custom category by name (requires userId).
+   * Also removes it from Supabase and clears associated rules.
    */
   const removeCustomCategory = useCallback((name: string) => {
+    if (!userId) {
+      console.warn("Cannot remove custom category without userId");
+      return;
+    }
+
     setCustomCategories((prev) => prev.filter((c) => c !== name));
 
     // Also remove all rules that use this category
@@ -334,7 +368,12 @@ export function useUserCategoryRules(userId?: string) {
       delete next[name];
       return next;
     });
-  }, []);
+
+    // Sync removal to Supabase
+    removeCustomCategoryFromSupabase(userId, name).catch((err) => {
+      console.error("Error removing custom category from Supabase:", err);
+    });
+  }, [userId]);
 
   return {
     rules,
