@@ -13,6 +13,7 @@ import { LoginScreen } from "./components/LoginScreen";
 import { BalanceEvolutionChart } from "./components/BalanceEvolutionChart";
 import { FinancialKPIs } from "./components/FinancialKPIs";
 import { useSupabaseSync } from "./hooks/useSupabaseSync";
+import { getAllAssignableCategories } from "./hooks/useUserCategoryRules";
 import { useInactivityLogout } from "./hooks/useInactivityLogout";
 import { summarizeAccountTotalsByBank, sumNetTotals } from "./utils/n26AccountUtils";
 import { normalizeAccountOwnerToAlias } from "./utils/textUtils";
@@ -42,6 +43,9 @@ export default function App() {
     isSupabaseAvailable,
     deleteMovementsByFile,
     clearMovements,
+    addCategoryRule,
+    removeCategoryRule,
+    clearCategoryRules,
     refreshData,
   } = useSupabaseSync(session?.id || null);
 
@@ -369,6 +373,11 @@ export default function App() {
           onRemoveFileData={handleRemoveFileData}
           importedFileNames={importedFileNames}
           isProcessing={isProcessing}
+          categoryRules={categoryRules}
+          assignableCategories={getAllAssignableCategories(customCategories)}
+          onAddCategoryRule={addCategoryRule}
+          onRemoveCategoryRule={removeCategoryRule}
+          onClearCategoryRules={clearCategoryRules}
         />
 
         {/* Latest Import Session Results Summary */}

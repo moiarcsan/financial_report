@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Upload, Trash2, AlertCircle, X } from "lucide-react";
+import { Upload, Trash2, AlertCircle, X, Plus, Tag } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface ImportButtonProps {
@@ -10,6 +10,11 @@ interface ImportButtonProps {
   onRemoveFileData: (fileName: string) => void;
   importedFileNames: string[];
   isProcessing: boolean;
+  categoryRules: Map<string, string>;
+  assignableCategories: string[];
+  onAddCategoryRule: (keyword: string, category: string) => Promise<void>;
+  onRemoveCategoryRule: (keyword: string) => Promise<void>;
+  onClearCategoryRules: () => Promise<void>;
 }
 
 export const ImportButton: React.FC<ImportButtonProps> = ({
@@ -20,11 +25,22 @@ export const ImportButton: React.FC<ImportButtonProps> = ({
   onRemoveFileData,
   importedFileNames,
   isProcessing,
+  categoryRules,
+  assignableCategories,
+  onAddCategoryRule,
+  onRemoveCategoryRule,
+  onClearCategoryRules,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [showConfirmClear, setShowConfirmClear] = useState(false);
   const [pendingRemovalFile, setPendingRemovalFile] = useState<string | null>(null);
+  const [newRuleKeyword, setNewRuleKeyword] = useState("");
+  const [newRuleCategory, setNewRuleCategory] = useState(assignableCategories[0] || "Otros");
+  const [showConfirmClearRules, setShowConfirmClearRules] = useState(false);
+  const [isSavingRule, setIsSavingRule] = useState(false);
+
+  const sortedRules = Array.from(categoryRules.entries()).sort((a, b) => a[0].localeCompare(b[0], "es"));
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -93,6 +109,40 @@ export const ImportButton: React.FC<ImportButtonProps> = ({
 
   const cancelRemoveFile = () => {
     setPendingRemovalFile(null);
+  };
+
+  const handleAddRule = async () => {
+    const keyword = newRuleKeyword.trim();
+    if (!keyword || !newRuleCategory || isSavingRule) return;
+
+    setIsSavingRule(true);
+    try {
+      await onAddCategoryRule(keyword, newRuleCategory);
+      setNewRuleKeyword("");
+    } finally {
+      setIsSavingRule(false);
+    }
+  };
+
+  const handleRemoveRule = async (keyword: string) => {
+    if (isSavingRule) return;
+    setIsSavingRule(true);
+    try {
+      await onRemoveCategoryRule(keyword);
+    } finally {
+      setIsSavingRule(false);
+    }
+  };
+
+  const handleClearRules = async () => {
+    if (isSavingRule) return;
+    setIsSavingRule(true);
+    try {
+      await onClearCategoryRules();
+      setShowConfirmClearRules(false);
+    } finally {
+      setIsSavingRule(false);
+    }
   };
 
   return (
@@ -181,6 +231,111 @@ export const ImportButton: React.FC<ImportButtonProps> = ({
 
               {/* Action Buttons Box */}
               <div className="space-y-4 pt-4 border-t border-slate-100">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider font-mono">
+                      Reglas de categorizacion
+                    </p>
+                    <span className="text-[11px] text-slate-400">{sortedRules.length}</span>
+                  </div>
+
+                  <p className="text-xs text-slate-500">
+                    Define palabra clave - categoria para que la app clasifique automaticamente.
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+                    <input
+                      type="text"
+                      value={newRuleKeyword}
+                      onChange={(e) => setNewRuleKeyword(e.target.value)}
+                      placeholder="Ej: bizum, caj., comision"
+                      className="sm:col-span-2 text-xs sm:text-sm font-sans text-slate-700 border border-slate-300 rounded-lg px-2 sm:px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                      disabled={isSavingRule}
+                    />
+                    <select
+                      value={newRuleCategory}
+                      onChange={(e) => setNewRuleCategory(e.target.value)}
+                      className="sm:col-span-2 text-xs sm:text-sm font-sans text-slate-700 border border-slate-300 rounded-lg px-2 sm:px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                      disabled={isSavingRule}
+                    >
+                      {assignableCategories.map((category) => (
+                        <option key={category} value={category}>{category}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleAddRule}
+                      disabled={isSavingRule || !newRuleKeyword.trim()}
+                      className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      <Plus size={14} />
+                      Guardar
+                    </button>
+                  </div>
+
+                  {sortedRules.length === 0 ? (
+                    <p className="text-xs text-slate-400">Aun no tienes reglas personalizadas.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      {sortedRules.map(([keyword, category]) => (
+                        <div
+                          key={keyword}
+                          className="w-full flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-left"
+                        >
+                          <div className="min-w-0 pr-2">
+                            <p className="text-xs text-slate-800 font-medium truncate flex items-center gap-1">
+                              <Tag size={12} className="text-slate-400 shrink-0" />
+                              {keyword}
+                            </p>
+                            <p className="text-[11px] text-slate-500 truncate">{category}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveRule(keyword)}
+                            disabled={isSavingRule}
+                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
+                            title="Borrar regla"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {!showConfirmClearRules ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmClearRules(true)}
+                      disabled={isSavingRule || sortedRules.length === 0}
+                      className="w-full inline-flex items-center justify-center px-3 py-2 border border-rose-200 rounded-xl text-xs font-medium text-rose-600 hover:text-rose-700 bg-white hover:bg-rose-50/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      <Trash2 size={14} className="mr-2" />
+                      Borrar todas las reglas
+                    </button>
+                  ) : (
+                    <div className="p-3 rounded-xl bg-rose-50/50 border border-rose-200/60 flex flex-col gap-3">
+                      <p className="text-xs font-semibold text-rose-800">
+                        Se borraran todas las reglas personalizadas. Quieres continuar?
+                      </p>
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={handleClearRules}
+                          className="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-medium hover:bg-rose-700 transition-colors cursor-pointer"
+                        >
+                          Si, borrar
+                        </button>
+                        <button
+                          onClick={() => setShowConfirmClearRules(false)}
+                          className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 text-xs font-medium hover:bg-slate-50 transition-colors cursor-pointer"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {importedFileNames.length > 0 && (
                   <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
                     <div className="flex items-center justify-between">

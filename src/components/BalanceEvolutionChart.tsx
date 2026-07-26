@@ -126,6 +126,44 @@ export const BalanceEvolutionChart: React.FC<BalanceEvolutionChartProps> = ({
     })
     .join(" ");
 
+  const trendLineData = useMemo(() => {
+    if (points.length < 2) return null;
+
+    const n = points.length;
+    let sumX = 0;
+    let sumY = 0;
+    let sumXY = 0;
+    let sumX2 = 0;
+
+    points.forEach((point, idx) => {
+      sumX += idx;
+      sumY += point.balanceCents;
+      sumXY += idx * point.balanceCents;
+      sumX2 += idx * idx;
+    });
+
+    const denominator = n * sumX2 - sumX * sumX;
+    if (denominator === 0) return null;
+
+    const slope = (n * sumXY - sumX * sumY) / denominator;
+    const intercept = (sumY - slope * sumX) / n;
+
+    const startX = chartLeft;
+    const endX = chartLeft + chartWidth;
+    const startBalance = intercept;
+    const endBalance = slope * (n - 1) + intercept;
+    const startY = chartTop + chartHeight - ((startBalance - chartMin) / chartRange) * chartHeight;
+    const endY = chartTop + chartHeight - ((endBalance - chartMin) / chartRange) * chartHeight;
+
+    // Keep the trend line inside chart bounds.
+    const clampY = (y: number) => Math.max(chartTop, Math.min(chartTop + chartHeight, y));
+
+    return {
+      path: `M ${startX} ${clampY(startY)} L ${endX} ${clampY(endY)}`,
+      slope,
+    };
+  }, [points, chartLeft, chartWidth, chartTop, chartHeight, chartMin, chartRange]);
+
   // Color based on trend
   const lineColor = isPositive ? "#10b981" : "#ef4444";
   const areaColor = isPositive ? "rgb(16, 185, 129, 0.1)" : "rgb(239, 68, 68, 0.1)";
@@ -169,6 +207,9 @@ export const BalanceEvolutionChart: React.FC<BalanceEvolutionChartProps> = ({
           </div>
           <p className="text-xs text-slate-500 mt-1">
             Visualización diaria del saldo real de las cuentas
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            Incluye línea de tendencia del rango seleccionado
           </p>
           <p className="text-xs text-slate-500 mt-1">
             Rango seleccionado: {selectedStartDateLabel} - {selectedEndDateLabel}
@@ -245,6 +286,18 @@ export const BalanceEvolutionChart: React.FC<BalanceEvolutionChartProps> = ({
 
           {/* Line */}
           <path d={pathData} stroke={lineColor} strokeWidth="2.5" fill="none" />
+
+          {/* Trend line */}
+          {trendLineData && (
+            <path
+              d={trendLineData.path}
+              stroke="#1d4ed8"
+              strokeWidth="2"
+              strokeDasharray="6 4"
+              fill="none"
+              opacity="0.9"
+            />
+          )}
 
           {/* Points */}
           {points.map((point, idx) => {

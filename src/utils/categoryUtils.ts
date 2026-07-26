@@ -25,6 +25,7 @@ export type ExpenseCategory =
   | "Nómina / Ingresos"
   | "Ahorro / Inversión"
   | "Transferencias entre cuentas"
+  | "Bizum"
   | "Cajero / Comisiones"
   | "Otros";
 
@@ -48,6 +49,7 @@ export const CATEGORY_ORDER: ExpenseCategory[] = [
   "Regalos",
   "Viajes",
   "Impuestos / Trámites",
+  "Bizum",
   "Cajero / Comisiones",
   "Nómina / Ingresos",
   "Ahorro / Inversión",
@@ -90,6 +92,7 @@ export const CATEGORY_COLORS: CategoryColorMap = {
   "Regalos": "#f9a8d4",
   "Viajes": "#99f6e4",
   "Impuestos / Trámites": "#cbd5e1",
+  "Bizum": "#93c5fd",
   "Cajero / Comisiones": "#e2e8f0",
   "Nómina / Ingresos": "#86efac",
   "Ahorro / Inversión": "#93c5fd",
@@ -463,10 +466,18 @@ const KEYWORD_CATEGORIES: Array<{ keywords: string[]; category: ExpenseCategory 
     ],
     category: "Impuestos / Trámites",
   },
+  // ── BIZUM ─────────────────────────────────────────────────────
+  {
+    keywords: [
+      "bizum", "bizum enviado", "bizum recibido", "pago bizum", "cobro bizum",
+    ],
+    category: "Bizum",
+  },
   // ── CAJERO / COMISIONES ───────────────────────────────────────
   {
     keywords: [
       "cajero", "cajero automático", "comisión", "comision", "comisiones",
+      "caj.", " caj ", "retirada caj", "retirada en cajero", "retirada efectivo",
       "retención", "retencion", "mantenimiento cuenta", "cuota cuenta",
       "gastos cuenta", "intereses descubierto", "intereses demora",
       "comision mantenimiento", "comisión de mantenimiento",

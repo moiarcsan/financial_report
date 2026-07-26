@@ -259,11 +259,16 @@ export function useSupabaseSync(userId: string | null) {
       if (!userId || !isSupabaseAvailable) return;
 
       try {
-        const { error } = await supabase.from("category_rules").insert({
-          user_id: userId,
-          keyword: keyword.trim(),
-          category,
-        });
+        const { error } = await supabase.from("category_rules").upsert(
+          {
+            user_id: userId,
+            keyword: keyword.trim(),
+            category,
+          },
+          {
+            onConflict: "user_id,keyword",
+          }
+        );
 
         if (error) throw error;
         setCategoryRules((prev) => new Map(prev).set(keyword.trim(), category));
