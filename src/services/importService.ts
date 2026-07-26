@@ -21,7 +21,7 @@ async function saveMovementsToSupabase(userId: string, movements: BankMovement[]
     return;
   }
 
-  const supabaseMovements = movements.map((m) => ({
+  const supabaseMovementsRaw = movements.map((m) => ({
     id: m.fingerprint,
     user_id: userId,
     bank: m.bank,
@@ -34,6 +34,14 @@ async function saveMovementsToSupabase(userId: string, movements: BankMovement[]
     source_file_name: m.sourceFileName,
     imported_at: m.importedAt,
   }));
+
+  // Deduplicate by id to avoid "ON CONFLICT DO UPDATE command cannot affect row a second time"
+  const seen = new Set<string>();
+  const supabaseMovements = supabaseMovementsRaw.filter((m) => {
+    if (seen.has(m.id)) return false;
+    seen.add(m.id);
+    return true;
+  });
 
   // El upsert inserta los nuevos y actualiza/ignora los existentes basados en la clave primaria (id/fingerprint)
   const { error } = await supabase.from("movements").upsert(supabaseMovements, {

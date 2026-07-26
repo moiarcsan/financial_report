@@ -10,6 +10,8 @@ import { SavingsHistory } from "./components/SavingsHistory";
 import { IncomeVsExpensesChart } from "./components/IncomeVsExpensesChart";
 import { ExpenseAnalysis, type CategoryFilter } from "./components/ExpenseAnalysis";
 import { LoginScreen } from "./components/LoginScreen";
+import { BalanceEvolutionChart } from "./components/BalanceEvolutionChart";
+import { FinancialKPIs } from "./components/FinancialKPIs";
 import { useSupabaseSync } from "./hooks/useSupabaseSync";
 import { useInactivityLogout } from "./hooks/useInactivityLogout";
 import { summarizeAccountTotalsByBank, sumNetTotals } from "./utils/n26AccountUtils";
@@ -178,12 +180,12 @@ export default function App() {
 
   // Safely calculate net totals in cents to avoid floats errors
   const totalCount = movements.length;
-  const initialN26MoiBalanceCents = 23303;
-  const initialN26ManuBalanceCents = 8565;
-  const initialSabadellMoiBalanceCents = 4925520;
-  const initialSabadellManuBalanceCents = 329;
-  const initialUnicajaBalanceCents = 209821;
-  const startDate = "2026-07-01";
+  const initialN26MoiBalanceCents = 0;
+  const initialN26ManuBalanceCents = 0;
+  const initialSabadellMoiBalanceCents = 0;
+  const initialSabadellManuBalanceCents = 5084374; // Sabadell Manu (corriente + ahorro) a 01/01/2026
+  const initialUnicajaBalanceCents = 1349657;    // Unicaja a 01/01/2026
+  const startDate = "2026-01-01";
   let n26NetCents = initialN26MoiBalanceCents + initialN26ManuBalanceCents;
   let unicajaNetCents = initialUnicajaBalanceCents;
   let sabadellNetCents = initialSabadellMoiBalanceCents + initialSabadellManuBalanceCents;
@@ -284,7 +286,7 @@ export default function App() {
   const globalNetCents = sumNetTotals(n26NetCents, unicajaNetCents, sabadellNetCents);
   const savingsHistory = buildMonthlySavingsHistory(
     movements.map((movement) => ({ operationDate: movement.operationDate, amount: movement.amount })),
-    "2026-07-01",
+    "2026-01-01",
     "2026-12-31",
     sumNetTotals(initialN26MoiBalanceCents, initialN26ManuBalanceCents, initialSabadellMoiBalanceCents, initialSabadellManuBalanceCents, initialUnicajaBalanceCents),
     globalNetCents
@@ -373,6 +375,34 @@ export default function App() {
         <ImportSummary
           summary={importSummary}
           onClose={handleCloseSummary}
+        />
+
+        {/* Financial KPIs */}
+        <FinancialKPIs
+          movements={movements}
+          initialBalanceCents={sumNetTotals(
+            initialN26MoiBalanceCents,
+            initialN26ManuBalanceCents,
+            initialSabadellMoiBalanceCents,
+            initialSabadellManuBalanceCents,
+            initialUnicajaBalanceCents
+          )}
+          currentBalanceCents={globalNetCents}
+          userRules={categoryRules}
+        />
+
+        {/* Balance Evolution Chart */}
+        <BalanceEvolutionChart
+          movements={movements}
+          initialBalanceCents={sumNetTotals(
+            initialN26MoiBalanceCents,
+            initialN26ManuBalanceCents,
+            initialSabadellMoiBalanceCents,
+            initialSabadellManuBalanceCents,
+            initialUnicajaBalanceCents
+          )}
+          startDate={startDate}
+          userRules={categoryRules}
         />
 
         {/* Savings history section */}

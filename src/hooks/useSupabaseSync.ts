@@ -150,7 +150,7 @@ export function useSupabaseSync(userId: string | null) {
       if (!userId || !isSupabaseAvailable) return;
 
       try {
-        const supabaseMovements = newMovements.map((m) => ({
+        const supabaseMovementsRaw = newMovements.map((m) => ({
           id: m.fingerprint,
           user_id: userId,
           bank: m.bank,
@@ -163,6 +163,14 @@ export function useSupabaseSync(userId: string | null) {
           source_file_name: m.sourceFileName,
           imported_at: m.importedAt,
         }));
+
+        // Deduplicate by id to avoid "ON CONFLICT DO UPDATE command cannot affect row a second time"
+        const seen = new Set<string>();
+        const supabaseMovements = supabaseMovementsRaw.filter((m) => {
+          if (seen.has(m.id)) return false;
+          seen.add(m.id);
+          return true;
+        });
 
         const { error } = await supabase.from("movements").upsert(supabaseMovements);
 

@@ -39,18 +39,25 @@ interface MonthlyData {
 }
 
 export const IncomeVsExpensesChart: React.FC<IncomeVsExpensesChartProps> = ({ userId, movements }) => {
-  const [selectedMonth, setSelectedMonth] = useState<string>(getCurrentMonth());
   const { rules } = useUserCategoryRules(userId);
 
   // Get all available months from movements
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
     for (const mov of movements) {
-      const monthKey = mov.operationDate.substring(0, 7); // YYYY-MM
+      const monthKey = mov.operationDate.substring(0, 7);
       months.add(monthKey);
     }
     return Array.from(months).sort().reverse(); // Most recent first
   }, [movements]);
+
+  // Default to most recent month with data, fallback to current month
+  const [selectedMonth, setSelectedMonth] = useState<string>(getCurrentMonth());
+
+  // Update selectedMonth when availableMonths changes and current selection has no data
+  const effectiveMonth = availableMonths.length > 0 && !availableMonths.includes(selectedMonth)
+    ? availableMonths[0]
+    : selectedMonth;
 
   // Filter movements for selected month
   const monthlyMovements = useMemo(() => {
@@ -61,9 +68,9 @@ export const IncomeVsExpensesChart: React.FC<IncomeVsExpensesChartProps> = ({ us
       }
       
       // Only include movements from selected month
-      return mov.operationDate.substring(0, 7) === selectedMonth;
+      return mov.operationDate.substring(0, 7) === effectiveMonth;
     });
-  }, [movements, selectedMonth, rules]);
+  }, [movements, effectiveMonth, rules]);
 
   // Calculate totals for selected month
   const { incomeCents, expenseCents, incomeCount, expenseCount } = useMemo(() => {
@@ -111,7 +118,7 @@ export const IncomeVsExpensesChart: React.FC<IncomeVsExpensesChartProps> = ({ us
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <Calendar size={14} className="text-slate-400 shrink-0" />
           <select
-            value={selectedMonth}
+            value={effectiveMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
             className="text-xs sm:text-sm font-sans text-slate-700 border border-slate-300 rounded-lg px-2 sm:px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white cursor-pointer flex-1 sm:flex-none"
             aria-label="Seleccionar mes"
