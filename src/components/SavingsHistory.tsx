@@ -139,15 +139,17 @@ export const SavingsHistory: React.FC<SavingsHistoryProps> = ({
           <tbody className="divide-y divide-slate-100 bg-white">
             {history.map((point) => {
               const vsTarget = point.deltaCents - monthlyTargetCents;
+              const hasSaved = point.deltaCents > 0;
+              const reachedTarget = point.deltaCents >= monthlyTargetCents;
               return (
                 <tr key={point.monthKey} className="hover:bg-indigo-50/30 transition-colors border-b border-slate-100/60">
                   <td className="px-6 py-4 text-sm font-semibold text-slate-800">{point.label}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">{formatCentsToEuro(point.startBalanceCents)}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">{formatCentsToEuro(point.endBalanceCents)}</td>
-                  <td className={`px-6 py-4 text-sm font-semibold ${point.deltaCents >= monthlyTargetCents ? "text-emerald-600" : "text-rose-600"}`}>
+                  <td className={`px-6 py-4 text-sm font-semibold ${hasSaved ? "text-emerald-600" : "text-rose-600"}`}>
                     {formatCentsToEuro(point.deltaCents)}
                   </td>
-                  <td className={`px-6 py-4 text-sm ${vsTarget >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                  <td className={`px-6 py-4 text-sm font-semibold ${reachedTarget ? "text-emerald-600" : "text-rose-600"}`}>
                     {vsTarget >= 0 ? "+" : ""}{formatCentsToEuro(vsTarget)}
                   </td>
                 </tr>

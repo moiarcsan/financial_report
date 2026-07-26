@@ -91,6 +91,15 @@ export function calculateBalanceEvolution(
     });
   }
 
+  // Ensure we always include the selected end date in the chart.
+  if (endDate && points[points.length - 1]?.date !== endDate) {
+    points.push({
+      date: endDate,
+      dateLabel: formatDateLabel(endDate),
+      balanceCents: runningBalance,
+    });
+  }
+
   return points;
 }
 
@@ -101,9 +110,12 @@ export function calculateMonthlyMetrics(
   movements: BankMovement[],
   initialBalanceCents: number,
   currentBalanceCents: number,
-  selectedMonth?: string,
-  userRules?: Map<string, string>
+  selectedMonthOrRules?: string | Map<string, string>,
+  maybeUserRules?: Map<string, string>
 ): FinancialMetrics {
+  const selectedMonth = typeof selectedMonthOrRules === "string" ? selectedMonthOrRules : undefined;
+  const userRules = selectedMonthOrRules instanceof Map ? selectedMonthOrRules : maybeUserRules;
+
   // Get selected month date range (or current month by default)
   const now = new Date();
   const selectedMonthMatch = selectedMonth?.match(/^(\d{4})-(\d{2})$/);

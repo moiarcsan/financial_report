@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { type BankMovement } from "../types/movement";
 import { calculateBalanceEvolution, type BalancePoint } from "../utils/balanceEvolutionUtils";
 import { formatCentsToEuro } from "../utils/moneyUtils";
-import { TrendingUp } from "lucide-react";
+import { Calendar, TrendingUp } from "lucide-react";
 
 interface BalanceEvolutionChartProps {
   movements: BankMovement[];
@@ -17,15 +17,65 @@ export const BalanceEvolutionChart: React.FC<BalanceEvolutionChartProps> = ({
   startDate,
   userRules,
 }) => {
+  const todayIso = new Date().toISOString().split("T")[0];
+  const normalizedMovementDates = useMemo(() => {
+    const uniqueDates = new Set<string>();
+    for (const mov of movements) {
+      uniqueDates.add(mov.operationDate.substring(0, 10));
+    }
+    return Array.from(uniqueDates).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+  }, [movements]);
+
+  const minSelectableDate = startDate || normalizedMovementDates[0] || todayIso;
+  const latestMovementDate = normalizedMovementDates[normalizedMovementDates.length - 1];
+  const maxSelectableDate = latestMovementDate || minSelectableDate;
+
+  const [selectedStartDate, setSelectedStartDate] = useState<string>(minSelectableDate);
+  const [selectedEndDate, setSelectedEndDate] = useState<string>(maxSelectableDate);
   const [hoveredPointIndex, setHoveredPointIndex] = useState<number | null>(null);
+  const [hasUserAdjustedRange, setHasUserAdjustedRange] = useState(false);
+
+  useEffect(() => {
+    if (!latestMovementDate) return;
+    if (hasUserAdjustedRange) return;
+
+    setSelectedStartDate(minSelectableDate);
+    setSelectedEndDate(maxSelectableDate);
+  }, [minSelectableDate, maxSelectableDate, latestMovementDate, hasUserAdjustedRange]);
+
+  const clampedStartDate = selectedStartDate < minSelectableDate ? minSelectableDate : selectedStartDate;
+  const effectiveStartDate = clampedStartDate > maxSelectableDate ? maxSelectableDate : clampedStartDate;
+  const clampedEndDate = selectedEndDate > maxSelectableDate ? maxSelectableDate : selectedEndDate;
+  const effectiveEndDate = clampedEndDate < effectiveStartDate ? effectiveStartDate : clampedEndDate;
+
+  const selectedInitialBalanceCents = useMemo(() => {
+    let runningBalance = initialBalanceCents;
+    for (const mov of movements) {
+      const movDate = mov.operationDate.substring(0, 10);
+      if (movDate < effectiveStartDate) {
+        runningBalance += Math.round(mov.amount * 100);
+      }
+    }
+    return runningBalance;
+  }, [movements, initialBalanceCents, effectiveStartDate]);
 
   const points = useMemo(
-    () => calculateBalanceEvolution(movements, initialBalanceCents, startDate, undefined, userRules),
-    [movements, initialBalanceCents, startDate, userRules]
+    () => calculateBalanceEvolution(movements, selectedInitialBalanceCents, effectiveStartDate, effectiveEndDate, userRules),
+    [movements, selectedInitialBalanceCents, effectiveStartDate, effectiveEndDate, userRules]
   );
 
-  const currentBalanceCents = points.length > 0 ? points[points.length - 1].balanceCents : initialBalanceCents;
-  const isPositive = currentBalanceCents >= initialBalanceCents;
+  const currentBalanceCents = points.length > 0 ? points[points.length - 1].balanceCents : selectedInitialBalanceCents;
+  const isPositive = currentBalanceCents >= selectedInitialBalanceCents;
+  const selectedStartDateLabel = new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(`${effectiveStartDate}T00:00:00`));
+  const selectedEndDateLabel = new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(`${effectiveEndDate}T00:00:00`));
 
   if (points.length === 0) {
     return (
@@ -111,14 +161,47 @@ export const BalanceEvolutionChart: React.FC<BalanceEvolutionChartProps> = ({
 
   return (
     <div className="mb-8 rounded-3xl border border-slate-200/60 bg-white shadow-xl overflow-hidden">
-      <div className="border-b border-slate-100 px-6 py-5">
-        <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-          <TrendingUp size={16} className="text-indigo-600" />
-          Evolución del saldo
+      <div className="border-b border-slate-100 px-6 py-5 flex items-center justify-between gap-2 flex-col sm:flex-row">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <TrendingUp size={16} className="text-indigo-600" />
+            Evolución del saldo
+          </div>
+          <p className="text-xs text-slate-500 mt-1">
+            Visualización diaria del saldo real de las cuentas
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            Rango seleccionado: {selectedStartDateLabel} - {selectedEndDateLabel}
+          </p>
         </div>
-        <p className="text-xs text-slate-500 mt-1">
-          Visualización diaria del saldo real de las cuentas
-        </p>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Calendar size={14} className="text-slate-400 shrink-0" />
+          <input
+            type="date"
+            value={effectiveStartDate}
+            min={minSelectableDate}
+            max={effectiveEndDate}
+            onChange={(e) => {
+              setHasUserAdjustedRange(true);
+              setSelectedStartDate(e.target.value);
+            }}
+            className="text-xs sm:text-sm font-sans text-slate-700 border border-slate-300 rounded-lg px-2 sm:px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+            aria-label="Seleccionar fecha de inicio para evolución del saldo"
+          />
+          <span className="text-xs text-slate-400">a</span>
+          <input
+            type="date"
+            value={effectiveEndDate}
+            min={effectiveStartDate}
+            max={maxSelectableDate}
+            onChange={(e) => {
+              setHasUserAdjustedRange(true);
+              setSelectedEndDate(e.target.value);
+            }}
+            className="text-xs sm:text-sm font-sans text-slate-700 border border-slate-300 rounded-lg px-2 sm:px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+            aria-label="Seleccionar fecha de fin para evolución del saldo"
+          />
+        </div>
       </div>
 
       <div className="p-6 overflow-x-auto">
@@ -237,13 +320,13 @@ export const BalanceEvolutionChart: React.FC<BalanceEvolutionChartProps> = ({
       {/* Summary */}
       <div className="border-t border-slate-100 px-6 py-4 bg-slate-50/50 flex flex-wrap gap-4 text-sm">
         <div>
-          <span className="text-slate-500">Saldo inicial:</span>
+          <span className="text-slate-500">Saldo el {selectedStartDateLabel}:</span>
           <span className="ml-2 font-semibold text-slate-800">
-            {formatCentsToEuro(initialBalanceCents)}
+            {formatCentsToEuro(selectedInitialBalanceCents)}
           </span>
         </div>
         <div>
-          <span className="text-slate-500">Saldo actual:</span>
+          <span className="text-slate-500">Saldo el {selectedEndDateLabel}:</span>
           <span className={`ml-2 font-semibold ${isPositive ? "text-emerald-600" : "text-rose-600"}`}>
             {formatCentsToEuro(currentBalanceCents)}
           </span>
@@ -252,7 +335,7 @@ export const BalanceEvolutionChart: React.FC<BalanceEvolutionChartProps> = ({
           <span className="text-slate-500">Cambio:</span>
           <span className={`ml-2 font-semibold ${isPositive ? "text-emerald-600" : "text-rose-600"}`}>
             {isPositive ? "+" : ""}
-            {formatCentsToEuro(currentBalanceCents - initialBalanceCents)}
+            {formatCentsToEuro(currentBalanceCents - selectedInitialBalanceCents)}
           </span>
         </div>
       </div>
