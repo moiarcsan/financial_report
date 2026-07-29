@@ -85,8 +85,8 @@ const renderCustomLabel = (props: any, category: string) => {
   const { x, y, width, height, value } = props;
   if (!value) return null;
   
-  // Para Bizum: mostrar con signo. Para el resto: mostrar valor absoluto
-  const displayValue = category === "Bizum"
+  // Para Bizum y Herencia tito: mostrar con signo. Para el resto: mostrar valor absoluto
+  const displayValue = (category === "Bizum" || category === "Herencia tito")
     ? formatCentsToEuro(value)
     : formatCentsToEuro(Math.abs(value));
   
@@ -150,8 +150,8 @@ export const CategoryTrendChart: React.FC<CategoryTrendChartProps> = ({
       if (!monthMap[monthKey]) {
         monthMap[monthKey] = {};
       }
-      // Bizum mantiene el signo; otras categorías usan valor absoluto
-      const value = category === "Bizum" 
+      // Bizum y Herencia tito mantienen el signo; otras categorías usan valor absoluto
+      const value = (category === "Bizum" || category === "Herencia tito")
         ? Math.round(m.amount * 100)
         : Math.abs(Math.round(m.amount * 100));
       
