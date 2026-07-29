@@ -9,6 +9,7 @@ import { MovementTable } from "./components/MovementTable";
 import { SavingsHistory } from "./components/SavingsHistory";
 import { IncomeVsExpensesChart } from "./components/IncomeVsExpensesChart";
 import { ExpenseAnalysis, type CategoryFilter } from "./components/ExpenseAnalysis";
+import { CategoryTrendChart } from "./components/CategoryTrendChart";
 import { LoginScreen } from "./components/LoginScreen";
 import { BalanceEvolutionChart } from "./components/BalanceEvolutionChart";
 import { FinancialKPIs } from "./components/FinancialKPIs";
@@ -431,6 +432,9 @@ export default function App() {
           movements={movements}
           onCategorySelect={setCategoryFilter}
         />
+
+        {/* Category Trend Chart */}
+        <CategoryTrendChart movements={movements} categoryRules={categoryRules} />
 
         {/* Master Transactions List Table */}
         <MovementTable
