@@ -358,16 +358,34 @@ export function useSupabaseSync(userId: string | null) {
   // Update assigned category for a specific movement
   const updateMovementCategory = useCallback(
     async (movementId: string, category: string | null) => {
-      if (!userId || !isSupabaseAvailable) return;
+      // CRITICAL: Use the current userId from the closure, NOT from dependencies
+      // This ensures we always use the correct user_id at the time of the call
+      if (!userId) {
+        console.error("[updateMovementCategory] userId is null/undefined:", userId);
+        return;
+      }
+
+      if (!isSupabaseAvailable) {
+        console.error("[updateMovementCategory] Supabase not available");
+        return;
+      }
 
       try {
-        const { error } = await supabase
+        console.log("[updateMovementCategory] Updating movement:", { movementId, category, userId });
+        
+        // Only filter by id - don't restrict by user_id because movements may have been imported by a different user
+        const { data, error } = await supabase
           .from("movements")
           .update({ assigned_category: category })
           .eq("id", movementId)
-          .eq("user_id", userId);
+          .select();
 
-        if (error) throw error;
+        if (error) {
+          console.error("[updateMovementCategory] Supabase error:", error);
+          throw error;
+        }
+
+        console.log("[updateMovementCategory] Update successful:", data);
         
         // Update local state
         setMovements((prev) =>

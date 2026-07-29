@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { type BankMovement } from "../types/movement";
 import { formatDateToSpanish } from "../utils/dateUtils";
 import { formatCentsToEuro } from "../utils/moneyUtils";
@@ -35,15 +35,25 @@ const CategoryEditableRow: React.FC<{
   const amountCents = Math.round(mov.amount * 100);
   const isPositive = amountCents >= 0;
 
+  // Sync selectedCategory when mov.assignedCategory changes (e.g., after a successful update)
+  useEffect(() => {
+    setSelectedCategory(categorizeConcept(mov.concept, rules, mov.assignedCategory));
+  }, [mov.assignedCategory, mov.concept, rules]);
+
   // Update displayed category when rules change (e.g., after saving)
   const displayCategory = editing ? selectedCategory : categorizeConcept(mov.concept, rules, mov.assignedCategory);
 
   const handleSave = async () => {
     // Save the assigned category to this specific movement
-    await updateMovementCategory(mov.id, selectedCategory);
-    setEditing(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    try {
+      await updateMovementCategory(mov.id, selectedCategory);
+      setEditing(false);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      console.error("Error al guardar categoría:", err);
+      // Don't close editing on error so user can retry
+    }
   };
 
   const handleCancel = () => {
@@ -181,7 +191,10 @@ type SortDirection = "asc" | "desc";
 export const MovementTable: React.FC<MovementTableProps> = ({ userId, movements, categoryFilter, onClearCategoryFilter, updateMovementCategory }) => {
   const { rules, addRule, customCategories, customCategoryColors } = useUserCategoryRules(userId);
   const categoryColors = getAllCategoryColors(customCategories, customCategoryColors);
-  const assignableCategories = useMemo(() => getAllAssignableCategories(customCategories), [customCategories]);
+  const assignableCategories = useMemo(() => {
+    const categories = getAllAssignableCategories(customCategories);
+    return categories.sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
+  }, [customCategories]);
   const [filters, setFilters] = useState<Filters>({
     dateFrom: "",
     dateTo: "",
@@ -589,7 +602,7 @@ export const MovementTable: React.FC<MovementTableProps> = ({ userId, movements,
                   mov={mov}
                   rules={rules}
                   updateMovementCategory={handleUpdateMovementCategory}
-                  assignableCategories={getAllAssignableCategories(customCategories)}
+                  assignableCategories={assignableCategories}
                   getBankBadgeClass={getBankBadgeClass}
                   formatDateToSpanish={formatDateToSpanish}
                   formatCentsToEuro={formatCentsToEuro}

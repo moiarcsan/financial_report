@@ -33,7 +33,8 @@ async function saveMovementsToSupabase(userId: string, movements: BankMovement[]
     currency: m.currency,
     source_file_name: m.sourceFileName,
     imported_at: m.importedAt,
-    assigned_category: null,
+    // DO NOT include assigned_category here - it would overwrite existing manual assignments
+    // assigned_category will only be set when user manually assigns it
   }));
 
   // Deduplicate by id to avoid "ON CONFLICT DO UPDATE command cannot affect row a second time"
