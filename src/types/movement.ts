@@ -10,6 +10,7 @@ export interface BankMovement {
   currency: "EUR";
   sourceFileName: string;
   importedAt: string;
+  assignedCategory?: string | null; // Manually assigned category for this movement
 }
 
 export interface FileImportResult {

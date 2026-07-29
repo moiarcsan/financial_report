@@ -12,6 +12,7 @@ interface MovementTableProps {
   movements: BankMovement[];
   categoryFilter?: CategoryFilter | null;
   onClearCategoryFilter?: () => void;
+  updateMovementCategory?: (movementId: string, category: string | null) => Promise<void>;
 }
 
 /**
@@ -20,33 +21,33 @@ interface MovementTableProps {
 const CategoryEditableRow: React.FC<{
   mov: BankMovement;
   rules: Map<string, string>;
-  addRule: (keyword: string, category: string) => void;
+  updateMovementCategory: (movementId: string, category: string | null) => Promise<void>;
   assignableCategories: string[];
   getBankBadgeClass: (bank: "N26" | "Unicaja" | "Sabadell") => string;
   formatDateToSpanish: (date: string) => string;
   formatCentsToEuro: (cents: number) => string;
   categoryColors: Record<string, string>;
-}> = ({ mov, rules, addRule, assignableCategories, getBankBadgeClass, formatDateToSpanish, formatCentsToEuro, categoryColors }) => {
+}> = ({ mov, rules, updateMovementCategory, assignableCategories, getBankBadgeClass, formatDateToSpanish, formatCentsToEuro, categoryColors }) => {
   const [editing, setEditing] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState(() => categorizeConcept(mov.concept, rules));
+  const [selectedCategory, setSelectedCategory] = useState(() => categorizeConcept(mov.concept, rules, mov.assignedCategory));
   const [saved, setSaved] = useState(false);
 
   const amountCents = Math.round(mov.amount * 100);
   const isPositive = amountCents >= 0;
 
   // Update displayed category when rules change (e.g., after saving)
-  const displayCategory = editing ? selectedCategory : categorizeConcept(mov.concept, rules);
+  const displayCategory = editing ? selectedCategory : categorizeConcept(mov.concept, rules, mov.assignedCategory);
 
-  const handleSave = () => {
-    // Only save if the category actually changed from the auto-detected one
-    addRule(mov.concept, selectedCategory);
+  const handleSave = async () => {
+    // Save the assigned category to this specific movement
+    await updateMovementCategory(mov.id, selectedCategory);
     setEditing(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
 
   const handleCancel = () => {
-    setSelectedCategory(categorizeConcept(mov.concept, rules));
+    setSelectedCategory(categorizeConcept(mov.concept, rules, mov.assignedCategory));
     setEditing(false);
   };
 
@@ -169,6 +170,7 @@ interface Filters {
   bank: string;
   account: string;
   concept: string;
+  category: string;
   amountMin: string;
   amountMax: string;
 }
@@ -176,9 +178,10 @@ interface Filters {
 type SortKey = "operationDate" | "valueDate" | "bank" | "account" | "concept" | "category" | "amount";
 type SortDirection = "asc" | "desc";
 
-export const MovementTable: React.FC<MovementTableProps> = ({ userId, movements, categoryFilter, onClearCategoryFilter }) => {
+export const MovementTable: React.FC<MovementTableProps> = ({ userId, movements, categoryFilter, onClearCategoryFilter, updateMovementCategory }) => {
   const { rules, addRule, customCategories, customCategoryColors } = useUserCategoryRules(userId);
   const categoryColors = getAllCategoryColors(customCategories, customCategoryColors);
+  const assignableCategories = useMemo(() => getAllAssignableCategories(customCategories), [customCategories]);
   const [filters, setFilters] = useState<Filters>({
     dateFrom: "",
     dateTo: "",
@@ -186,6 +189,7 @@ export const MovementTable: React.FC<MovementTableProps> = ({ userId, movements,
     bank: "",
     account: "",
     concept: "",
+    category: "",
     amountMin: "",
     amountMax: "",
   });
@@ -194,6 +198,9 @@ export const MovementTable: React.FC<MovementTableProps> = ({ userId, movements,
 
   // Sort configuration: column key + direction ("asc" | "desc" | null)
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection } | null>(null);
+
+  // Default empty handler if updateMovementCategory not provided
+  const handleUpdateMovementCategory = updateMovementCategory || (async () => {});
 
   const handleSort = (key: SortKey) => {
     setSortConfig((prev) => {
@@ -221,6 +228,7 @@ export const MovementTable: React.FC<MovementTableProps> = ({ userId, movements,
       bank: "",
       account: "",
       concept: "",
+      category: "",
       amountMin: "",
       amountMax: "",
     });
@@ -252,7 +260,7 @@ export const MovementTable: React.FC<MovementTableProps> = ({ userId, movements,
             comparison = a.concept.localeCompare(b.concept);
             break;
           case "category":
-            comparison = categorizeConcept(a.concept, rules).localeCompare(categorizeConcept(b.concept, rules));
+            comparison = categorizeConcept(a.concept, rules, a.assignedCategory).localeCompare(categorizeConcept(b.concept, rules, b.assignedCategory));
             break;
           case "amount":
             comparison = a.amount - b.amount;
@@ -282,8 +290,8 @@ export const MovementTable: React.FC<MovementTableProps> = ({ userId, movements,
       if (categoryFilter) {
         const isExpense = Math.round(mov.amount * 100) < 0;
         if (!isExpense) return false;
-        if (isInternalTransfer(mov.concept, rules)) return false;
-        const movCategory = categorizeConcept(mov.concept, rules);
+        if (isInternalTransfer(mov.concept, rules, mov.assignedCategory)) return false;
+        const movCategory = categorizeConcept(mov.concept, rules, mov.assignedCategory);
         if (movCategory !== categoryFilter.category) return false;
         // Match the selected month
         if (!mov.operationDate.startsWith(categoryFilter.month)) return false;
@@ -309,13 +317,17 @@ export const MovementTable: React.FC<MovementTableProps> = ({ userId, movements,
       const conceptMatch = filters.concept === "" ||
         mov.concept.toLowerCase().includes(filters.concept.toLowerCase());
 
+      // Category filter (resolved category, exact match)
+      const categoryMatch = filters.category === "" ||
+        categorizeConcept(mov.concept, rules, mov.assignedCategory) === filters.category;
+
       // Amount comparison filters
       const amountMinMatch = filters.amountMin === "" ||
         mov.amount >= parseFloat(filters.amountMin);
       const amountMaxMatch = filters.amountMax === "" ||
         mov.amount <= parseFloat(filters.amountMax);
 
-      return dateFromMatch && dateToMatch && valDateMatch && bankMatch && accountMatch && conceptMatch && amountMinMatch && amountMaxMatch;
+      return dateFromMatch && dateToMatch && valDateMatch && bankMatch && accountMatch && conceptMatch && categoryMatch && amountMinMatch && amountMaxMatch;
     });
   }, [sortedMovements, filters, categoryFilter]);
 
@@ -463,6 +475,21 @@ export const MovementTable: React.FC<MovementTableProps> = ({ userId, movements,
           <Tag size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
         </div>
 
+        {/* Category */}
+        <div className="relative">
+          <select
+            value={filters.category}
+            onChange={(e) => handleFilterChange("category", e.target.value)}
+            className="w-full pl-8 pr-2 py-1.5 text-xs font-sans border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+          >
+            <option value="">Categoría</option>
+            {assignableCategories.map((category) => (
+              <option key={category} value={category}>{category}</option>
+            ))}
+          </select>
+          <Filter size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+        </div>
+
         {/* Amount Min (>=) */}
         <div className="relative">
           <input
@@ -561,7 +588,7 @@ export const MovementTable: React.FC<MovementTableProps> = ({ userId, movements,
                   key={mov.id}
                   mov={mov}
                   rules={rules}
-                  addRule={addRule}
+                  updateMovementCategory={handleUpdateMovementCategory}
                   assignableCategories={getAllAssignableCategories(customCategories)}
                   getBankBadgeClass={getBankBadgeClass}
                   formatDateToSpanish={formatDateToSpanish}
@@ -605,10 +632,10 @@ export const MovementTable: React.FC<MovementTableProps> = ({ userId, movements,
                 <div className="flex items-center justify-between gap-2 text-xs">
                   <span className="text-slate-500">Categoría:</span>
                   <span className="font-medium px-2 py-1 rounded-lg" style={{
-                    backgroundColor: categoryColors[categorizeConcept(mov.concept, rules)] || "#f1f5f9",
-                    color: categoryColors[categorizeConcept(mov.concept, rules)] ? "#ffffff" : "#475569",
+                    backgroundColor: categoryColors[categorizeConcept(mov.concept, rules, mov.assignedCategory)] || "#f1f5f9",
+                    color: categoryColors[categorizeConcept(mov.concept, rules, mov.assignedCategory)] ? "#ffffff" : "#475569",
                   }}>
-                    {categorizeConcept(mov.concept, rules)}
+                    {categorizeConcept(mov.concept, rules, mov.assignedCategory)}
                   </span>
                 </div>
               </div>

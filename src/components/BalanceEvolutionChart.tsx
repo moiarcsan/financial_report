@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { type BankMovement } from "../types/movement";
 import { calculateBalanceEvolution, type BalancePoint } from "../utils/balanceEvolutionUtils";
 import { formatCentsToEuro } from "../utils/moneyUtils";
@@ -17,6 +17,9 @@ export const BalanceEvolutionChart: React.FC<BalanceEvolutionChartProps> = ({
   startDate,
   userRules,
 }) => {
+  const chartContainerRef = useRef<HTMLDivElement | null>(null);
+  const [svgWidth, setSvgWidth] = useState(900);
+  const [svgHeight, setSvgHeight] = useState(320);
   const todayIso = new Date().toISOString().split("T")[0];
   const normalizedMovementDates = useMemo(() => {
     const uniqueDates = new Set<string>();
@@ -42,6 +45,33 @@ export const BalanceEvolutionChart: React.FC<BalanceEvolutionChartProps> = ({
     setSelectedStartDate(minSelectableDate);
     setSelectedEndDate(maxSelectableDate);
   }, [minSelectableDate, maxSelectableDate, latestMovementDate, hasUserAdjustedRange]);
+
+  useEffect(() => {
+    const container = chartContainerRef.current;
+    if (!container) return;
+
+    const updateWidth = () => {
+      const containerWidth = Math.floor(container.clientWidth);
+      // Use full available width, but keep a minimum for readability.
+      const nextWidth = Math.max(900, containerWidth);
+      setSvgWidth(nextWidth);
+
+      // Keep a balanced aspect ratio so wide screens don't look visually flattened.
+      const nextHeight = Math.max(320, Math.min(430, Math.round(nextWidth * 0.34)));
+      setSvgHeight(nextHeight);
+    };
+
+    updateWidth();
+
+    if (typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver(() => {
+      updateWidth();
+    });
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
 
   const clampedStartDate = selectedStartDate < minSelectableDate ? minSelectableDate : selectedStartDate;
   const effectiveStartDate = clampedStartDate > maxSelectableDate ? maxSelectableDate : clampedStartDate;
@@ -101,10 +131,8 @@ export const BalanceEvolutionChart: React.FC<BalanceEvolutionChartProps> = ({
   const chartRange = chartMax - chartMin;
 
   // SVG dimensions
-  const svgWidth = 900;
-  const svgHeight = 300;
   const chartLeft = 110;
-  const chartRight = 30;
+  const chartRight = 90;
   const chartTop = 30;
   const chartBottom = 40;
 
@@ -245,7 +273,7 @@ export const BalanceEvolutionChart: React.FC<BalanceEvolutionChartProps> = ({
         </div>
       </div>
 
-      <div className="p-6 overflow-x-auto">
+      <div ref={chartContainerRef} className="p-6 overflow-x-auto">
         <svg width={svgWidth} height={svgHeight} className="min-w-full">
           {/* Grid lines */}
           {yLabels.map((value, idx) => {
@@ -352,14 +380,22 @@ export const BalanceEvolutionChart: React.FC<BalanceEvolutionChartProps> = ({
             if (idx % step !== 0 && idx !== points.length - 1) return null;
 
             const { x } = getPointPosition(point, idx);
+            const isFirst = idx === 0;
+            const isLast = idx === points.length - 1;
+            const labelPadding = 10;
+            const labelX = isFirst
+              ? Math.max(chartLeft + labelPadding, x)
+              : isLast
+              ? Math.min(svgWidth - chartRight - labelPadding, x)
+              : x;
             const y = svgHeight - chartBottom + 20;
 
             return (
               <text
                 key={`label-${idx}`}
-                x={x}
+                x={labelX}
                 y={y}
-                textAnchor="middle"
+                textAnchor={isFirst ? "start" : isLast ? "end" : "middle"}
                 dominantBaseline="start"
                 className="text-xs fill-slate-500"
               >

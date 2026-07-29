@@ -63,7 +63,7 @@ export const IncomeVsExpensesChart: React.FC<IncomeVsExpensesChartProps> = ({ us
   const monthlyMovements = useMemo(() => {
     return movements.filter((mov) => {
       // Skip internal transfers (by concept keywords OR by resolved category / user rules)
-      if (isInternalTransfer(mov.concept, rules)) {
+      if (isInternalTransfer(mov.concept, rules, mov.assignedCategory)) {
         return false;
       }
       

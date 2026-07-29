@@ -46,6 +46,7 @@ export default function App() {
     addCategoryRule,
     removeCategoryRule,
     clearCategoryRules,
+    updateMovementCategory,
     refreshData,
   } = useSupabaseSync(session?.id || null);
 
@@ -437,6 +438,7 @@ export default function App() {
           movements={movements}
           categoryFilter={categoryFilter}
           onClearCategoryFilter={() => setCategoryFilter(null)}
+          updateMovementCategory={updateMovementCategory}
         />
 
       </main>

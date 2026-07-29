@@ -147,7 +147,7 @@ export function calculateMonthlyMetrics(
     const amountCents = Math.round(mov.amount * 100);
     
     // Check if it's a transfer first
-    if (isInternalTransfer(mov.concept, userRules)) {
+    if (isInternalTransfer(mov.concept, userRules, mov.assignedCategory)) {
       totalTransfersCents += Math.abs(amountCents);
     } else if (amountCents > 0) {
       // Positive amounts that aren't transfers = income

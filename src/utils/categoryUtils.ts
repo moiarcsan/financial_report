@@ -153,10 +153,11 @@ export function isTransferCategory(category: string): boolean {
  */
 export function isInternalTransfer(
   concept: string,
-  userRules?: Map<string, string>
+  userRules?: Map<string, string>,
+  assignedCategory?: string | null
 ): boolean {
   if (isBalanceTransfer(concept)) return true;
-  const category = categorizeConcept(concept, userRules);
+  const category = categorizeConcept(concept, userRules, assignedCategory);
   return isTransferCategory(category);
 }
 
@@ -488,13 +489,17 @@ const KEYWORD_CATEGORIES: Array<{ keywords: string[]; category: ExpenseCategory 
 
 /**
  * Categorizes a single transaction concept into an expense category.
- * First checks user-defined rules (passed in), then keyword matching.
+ * First checks if it has an assigned category, then user-defined rules, then keyword matching.
  * Returns "Otros" if no match found.
  */
 export function categorizeConcept(
   concept: string,
-  userRules?: Map<string, string>
+  userRules?: Map<string, string>,
+  assignedCategory?: string | null
 ): string {
+  // 0) If manually assigned, use that
+  if (assignedCategory) return assignedCategory;
+
   const normalized = concept.toLowerCase().trim();
 
   // 1) Check user-defined rules first (from localStorage)
@@ -537,7 +542,7 @@ export function categorizeConcept(
  * @returns Array of CategorySummary objects sorted by totalCents descending
  */
 export function summarizeExpensesByCategory(
-  movements: Array<{ concept: string; amount: number }>,
+  movements: Array<{ concept: string; amount: number; assignedCategory?: string | null }>,
   userRules?: Map<string, string>
 ): CategorySummary[] {
   const totals: Record<string, { totalCents: number; count: number }> = {};
@@ -554,9 +559,9 @@ export function summarizeExpensesByCategory(
     if (cents >= 0) continue; // Only expenses (negative amounts)
 
     // Exclude balance transfers between accounts (by concept or resolved category)
-    if (isInternalTransfer(mov.concept, userRules)) continue;
+    if (isInternalTransfer(mov.concept, userRules, mov.assignedCategory)) continue;
 
-    const category = categorizeConcept(mov.concept, userRules);
+    const category = categorizeConcept(mov.concept, userRules, mov.assignedCategory);
     if (!totals[category]) {
       totals[category] = { totalCents: 0, count: 0 };
     }
@@ -583,13 +588,13 @@ export function summarizeExpensesByCategory(
  * Returns movements that fell into "Otros" for the user to review and categorize manually.
  */
 export function getUncategorizedMovements(
-  movements: Array<{ concept: string; amount: number }>,
+  movements: Array<{ concept: string; amount: number; assignedCategory?: string | null }>,
   userRules?: Map<string, string>
-): Array<{ concept: string; amount: number }> {
+): Array<{ concept: string; amount: number; assignedCategory?: string | null }> {
   return movements.filter((mov) => {
     const cents = Math.round(mov.amount * 100);
     if (cents >= 0) return false;
-    if (isInternalTransfer(mov.concept, userRules)) return false;
-    return categorizeConcept(mov.concept, userRules) === "Otros";
+    if (isInternalTransfer(mov.concept, userRules, mov.assignedCategory)) return false;
+    return categorizeConcept(mov.concept, userRules, mov.assignedCategory) === "Otros";
   });
 }

@@ -33,6 +33,7 @@ async function saveMovementsToSupabase(userId: string, movements: BankMovement[]
     currency: m.currency,
     source_file_name: m.sourceFileName,
     imported_at: m.importedAt,
+    assigned_category: null,
   }));
 
   // Deduplicate by id to avoid "ON CONFLICT DO UPDATE command cannot affect row a second time"
@@ -139,7 +140,7 @@ export async function processFile(
     // Hash generation
     const movementsToSave: BankMovement[] = [];
 
-    for (const mov of parseResult.parseResultMovements || parseResult.movements) {
+    for (const mov of parseResult.movements) {
       const fingerprint = await getMovementFingerprint(
         mov.bank,
         mov.account,

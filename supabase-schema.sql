@@ -17,6 +17,7 @@ create table if not exists movements (
     currency text not null default 'EUR' check (currency = 'EUR'),
     source_file_name text not null,
     external_id text, -- Hash fingerprint for duplicate detection
+    assigned_category text, -- Manually assigned category (overrides auto-calculation)
     imported_at timestamp not null,
     created_at timestamp default now()
 );

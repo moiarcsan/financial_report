@@ -15,6 +15,7 @@ export interface SupabaseMovement {
   currency: "EUR";
   source_file_name: string;
   imported_at: string;
+  assigned_category?: string | null; // Manually assigned category
 }
 
 export interface SupabaseCategoryRule {
@@ -88,6 +89,7 @@ export function useSupabaseSync(userId: string | null) {
         currency: m.currency,
         sourceFileName: m.source_file_name,
         importedAt: m.imported_at,
+        assignedCategory: m.assigned_category,
       }));
 
       setMovements(transformedMovements);
@@ -162,6 +164,7 @@ export function useSupabaseSync(userId: string | null) {
           currency: m.currency,
           source_file_name: m.sourceFileName,
           imported_at: m.importedAt,
+          assigned_category: m.assignedCategory || null,
         }));
 
         // Deduplicate by id to avoid "ON CONFLICT DO UPDATE command cannot affect row a second time"
@@ -202,6 +205,7 @@ export function useSupabaseSync(userId: string | null) {
           currency: movement.currency,
           source_file_name: movement.sourceFileName,
           imported_at: movement.importedAt,
+          assigned_category: movement.assignedCategory || null,
         };
 
         const { error } = await supabase.from("movements").insert(supabaseMovement);
@@ -351,6 +355,34 @@ export function useSupabaseSync(userId: string | null) {
     }
   }, [userId, isSupabaseAvailable]);
 
+  // Update assigned category for a specific movement
+  const updateMovementCategory = useCallback(
+    async (movementId: string, category: string | null) => {
+      if (!userId || !isSupabaseAvailable) return;
+
+      try {
+        const { error } = await supabase
+          .from("movements")
+          .update({ assigned_category: category })
+          .eq("id", movementId)
+          .eq("user_id", userId);
+
+        if (error) throw error;
+        
+        // Update local state
+        setMovements((prev) =>
+          prev.map((m) =>
+            m.id === movementId ? { ...m, assignedCategory: category } : m
+          )
+        );
+      } catch (err) {
+        console.error("Error updating movement category:", err);
+        setError(err instanceof Error ? err.message : "Error al actualizar categoría del movimiento");
+      }
+    },
+    [userId, isSupabaseAvailable]
+  );
+
   // Add custom category
   const addCustomCategory = useCallback(
     async (name: string, color: string) => {
@@ -424,6 +456,7 @@ export function useSupabaseSync(userId: string | null) {
     addCategoryRules,
     removeCategoryRule,
     clearCategoryRules,
+    updateMovementCategory,
     addCustomCategory,
     removeCustomCategory,
     refreshData: loadUserData,
